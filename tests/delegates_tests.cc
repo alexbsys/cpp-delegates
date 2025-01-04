@@ -1,15 +1,13 @@
 
 #include "delegates_tests.h"
 
-#include "../include/delegate.hpp"
-
+#include <delegates/delegates.hpp>
 #include <algorithm>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 
 #define DELEGATE_TESTS_WITH_EXCEPTIONS_ENABLED 0
-
 
 using namespace delegates;
 

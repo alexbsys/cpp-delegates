@@ -19,6 +19,11 @@ FetchContent_MakeAvailable(googletest)
 #enable_testing()
 #find_package(GTest REQUIRED)
 
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "v")
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON) #Optional
+
 set (SOURCE_FILES
   delegates_tests.cc
   delegates_tests_main.cc
@@ -26,7 +31,27 @@ set (SOURCE_FILES
   utils/mem_checker.cc
 )
 
-add_executable(cpp-delegates-tests ${SOURCE_FILES})
+set (HEADER_FILES
+  delegates_tests.h
+  utils/cprintf.h
+  utils/mem_checker.h
+)  
+
+set (DELEGATES_LIB_HEADER_FILES
+  ../include/delegates/delegates.hpp
+  ../include/delegates/i_delegate.h
+  ../include/delegates/detail/call_helper.hpp
+  ../include/delegates/detail/signal.hpp
+  ../include/delegates/detail/delegate_args_impl.hpp
+  ../include/delegates/detail/delegate_result_impl.hpp
+  ../include/delegates/detail/delegate_impl.hpp
+  ../include/delegates/detail/factory.hpp
+  ../include/delegates/detail/tuple_runtime.hpp
+)
+  
+include_directories("${CMAKE_CURRENT_LIST_DIR}/../include")
+
+add_executable(cpp-delegates-tests ${SOURCE_FILES} ${HEADER_FILES} ${DELEGATES_LIB_HEADER_FILES})
 target_link_libraries(cpp-delegates-tests gtest_main)
 #add_library(udev_dynamic_wrapper STATIC ${SOURCE_FILES})
 

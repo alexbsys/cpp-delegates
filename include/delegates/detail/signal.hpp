@@ -2,8 +2,9 @@
 #ifndef SIGNAL_HEADER
 #define SIGNAL_HEADER
 
-#include "delegate.hpp"
-#include "i_delegate.h"
+#include "delegate_impl.hpp"
+#include "../i_delegate.h"
+
 #include <list>
 #include <mutex>
 

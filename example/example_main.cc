@@ -1,7 +1,5 @@
 
-#include "../include/delegate.hpp"
-#include "../include/i_delegate.h"
-#include "../include/signal.hpp"
+#include <delegates/delegates.hpp>
 #include <memory>
 #include <iostream>
 #include <string>
