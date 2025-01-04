@@ -596,6 +596,28 @@ class SharedMethodDelegate
   std::shared_ptr<TClass> callee_ptr_;
 };
 
+/// \brief    Delegate for class method call by shared pointer implementation. Both void and non-void result types are supported
+template <class TClass, typename TResult, typename... Ts>
+class SharedConstMethodDelegate
+  : public ConstMethodDelegate<TClass, TResult, Ts...> {
+public:
+  SharedConstMethodDelegate(std::shared_ptr<TClass> callee,
+    TResult(TClass::* method)(Ts...) const,
+    Ts&&... args)
+    :ConstMethodDelegate<TClass, TResult, Ts...>(callee.get(), method, std::forward<Ts>(args)...)
+    , callee_ptr_(callee) {}
+
+  SharedConstMethodDelegate(std::shared_ptr<TClass> callee,
+    TResult(TClass::* method)(Ts...) const, std::nullptr_t)
+    :ConstMethodDelegate<TClass, TResult, Ts...>(callee.get(), method, std::nullptr_t{})
+    , callee_ptr_(callee) {}
+
+  ~SharedConstMethodDelegate() = default;
+private:
+  std::shared_ptr<TClass> callee_ptr_;
+};
+
+
 /// \brief    Delegate for class method call by shared pointer implementation. Non-void result types are supported
 template <class TClass, typename TResult, typename... Ts>
 class WeakMethodDelegate
@@ -613,8 +635,8 @@ class WeakMethodDelegate
 
   ~WeakMethodDelegate() = default;
  private:
-  bool perform_call(DelegateResult<TResult>& result, std::tuple<Ts...>& tup) override {
-    return perform_call(result, tup, call_helper::gen_seq<sizeof...(Ts)>{});
+  bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args) override {
+    return perform_call(result, args.get_tuple(), call_helper::gen_seq<sizeof...(Ts)>{});
   }
 
   template <std::size_t... Is>
@@ -622,7 +644,7 @@ class WeakMethodDelegate
     auto callee = callee_.lock();
     if (!callee)
       return false;
-    result.set((callee->*(mem_fn_))(std::get<Is>(tup)...));
+    result.set((callee.get()->*(mem_fn_))(std::get<Is>(tup)...));
     return true;
   }
 
@@ -653,12 +675,12 @@ class WeakMethodDelegate<TClass,void,Ts...>
     auto callee = callee_.lock();
     if (!callee)
       return false;
-    (callee->*(mem_fn_))(std::get<Is>(tup)...);
+    (callee.get()->*(mem_fn_))(std::get<Is>(tup)...);
     return true;
   }
 
-  bool perform_call(DelegateResult<void>& result, std::tuple<Ts...>& tup) override {
-    return perform_call(tup, call_helper::gen_seq<sizeof...(Ts)>{});
+  bool perform_call(DelegateResult<void>& result, DelegateArgs<Ts...>& args) override {
+    return perform_call(args.get_tuple(), call_helper::gen_seq<sizeof...(Ts)>{});
   }
 
   typedef void (TClass::*MethodType)(Ts...);
@@ -731,6 +753,8 @@ static IDelegate* make_lambda_delegate(F && lambda, std::nullptr_t) {
   return new LambdaDelegate<TResult, F, Ts...>(std::move(lambda), std::nullptr_t{});
 }
 
+// class instance pointer is weak_ptr
+
 template <class TClass, typename TResult, typename... Ts>
 static IDelegate* make_method_delegate(std::weak_ptr<TClass> callee,
                                        TResult (TClass::*method)(Ts...),
@@ -747,7 +771,8 @@ static IDelegate* make_method_delegate(std::weak_ptr<TClass> callee,
     callee, method, std::nullptr_t{});
 }
 
-// class pointer is weak_ptr
+// class instance pointer is shared ptr
+
 template <class TClass, typename TResult, typename... Ts>
 static IDelegate* make_method_delegate(std::shared_ptr<TClass> callee,
                                        TResult (TClass::*method)(Ts...),
@@ -761,6 +786,22 @@ static IDelegate* make_method_delegate(std::shared_ptr<TClass> callee,
                                        TResult (TClass::*method)(Ts...),
                                        std::nullptr_t) {
   return new SharedMethodDelegate<TClass, TResult, Ts...>(
+    callee, method, std::nullptr_t{});
+}
+
+template <class TClass, typename TResult, typename... Ts>
+static IDelegate* make_const_method_delegate(std::shared_ptr<TClass> callee,
+                                             TResult(TClass::* method)(Ts...) const,
+                                             Ts... args) {
+  return new SharedConstMethodDelegate<TClass, TResult, Ts...>(
+    callee, method, std::forward<Ts>(args)...);
+}
+
+template <class TClass, typename TResult, typename... Ts>
+static IDelegate* make_const_method_delegate(std::shared_ptr<TClass> callee,
+                                             TResult(TClass::* method)(Ts...) const,
+                                             std::nullptr_t) {
+  return new SharedConstMethodDelegate<TClass, TResult, Ts...>(
     callee, method, std::nullptr_t{});
 }
 
