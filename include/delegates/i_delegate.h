@@ -1,5 +1,5 @@
-#ifndef I_DEFERRED_CALL_HEADER
-#define I_DEFERRED_CALL_HEADER
+#ifndef DELEGATES_CPP_DELEGATE_INTERFACE_HEADER
+#define DELEGATES_CPP_DELEGATE_INTERFACE_HEADER
 
 #include <cassert>
 #include <cstdlib>
@@ -190,9 +190,9 @@ struct IDelegate {
 };
 
 /// \brief    multi delegate interface: provides call list with many delegates with same arguments and return values can be called
-struct IMultidelegate
+struct ISignal
   : public virtual IDelegate {
-  virtual ~IMultidelegate() = default;
+  virtual ~ISignal() = default;
 
   /// \brief    add delegate to call list. If delegate was added more than one time, it will be called many times
   /// \param    delegate - pointer to delegate
@@ -223,4 +223,4 @@ struct IMultidelegate
 
 }//namespace delegates
 
-#endif  // I_DEFERRED_CALL_HEADER
+#endif  // DELEGATES_CPP_DELEGATE_INTERFACE_HEADER

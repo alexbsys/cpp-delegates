@@ -1,9 +1,9 @@
 
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 
 project(cpp-delegates-example VERSION 0.0.1.1 LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 17 CACHE STRING "v")
+set(CMAKE_CXX_STANDARD 11 CACHE STRING "v")
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -16,7 +16,6 @@ set (SOURCE_FILES
 set (DELEGATES_LIB_HEADER_FILES
   ../include/delegates/delegates.hpp
   ../include/delegates/i_delegate.h
-  ../include/delegates/detail/call_helper.hpp
   ../include/delegates/detail/signal.hpp
   ../include/delegates/detail/delegate_args_impl.hpp
   ../include/delegates/detail/delegate_result_impl.hpp

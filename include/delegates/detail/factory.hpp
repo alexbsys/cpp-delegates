@@ -282,13 +282,13 @@ static IDelegate* make(F && lambda, std::nullptr_t) {
 }
 
 template <typename TResult=void, typename... Ts>
-static IMultidelegate* make_multidelegate(Ts&&... args) {
-  return new detail::Multidelegate<TResult, Ts...>(std::forward<Ts>(args)...);
+static ISignal* make_multidelegate(Ts&&... args) {
+  return new detail::SignalBase<TResult, Ts...>(std::forward<Ts>(args)...);
 }
 
 template <typename TResult=void, typename... Ts>
-static IMultidelegate* make_multidelegate(std::nullptr_t) {
-  return new detail::Multidelegate<TResult, Ts...>(std::nullptr_t{});
+static ISignal* make_multidelegate(std::nullptr_t) {
+  return new detail::SignalBase<TResult, Ts...>(std::nullptr_t{});
 }
 
 // autodetect shared
@@ -324,13 +324,13 @@ static std::shared_ptr<IDelegate> make_shared(F && lambda, std::nullptr_t) {
 }
 
 template <typename TResult=void, typename... Ts>
-static std::shared_ptr<IMultidelegate> make_shared_multidelegate(Ts&&... args) {
-  return std::shared_ptr<IMultidelegate>(make_multidelegate<TResult,Ts...>(std::forward<Ts>(args)...));
+static std::shared_ptr<ISignal> make_shared_multidelegate(Ts&&... args) {
+  return std::shared_ptr<ISignal>(make_multidelegate<TResult,Ts...>(std::forward<Ts>(args)...));
 }
 
 template <typename TResult=void, typename... Ts>
-static std::shared_ptr<IMultidelegate> make_shared_multidelegate(std::nullptr_t) {
-  return std::shared_ptr<IMultidelegate>(make_multidelegate<TResult,Ts...>(std::nullptr_t{}));
+static std::shared_ptr<ISignal> make_shared_multidelegate(std::nullptr_t) {
+  return std::shared_ptr<ISignal>(make_multidelegate<TResult,Ts...>(std::nullptr_t{}));
 }
 
 
@@ -367,13 +367,13 @@ static std::unique_ptr<IDelegate> make_unique(F && lambda, std::nullptr_t) {
 }
 
 template <typename TResult=void, typename... Ts>
-static std::unique_ptr<IMultidelegate> make_unique_multidelegate(Ts&&... args) {
-  return std::make_unique<detail::Multidelegate<TResult,Ts...> >(std::forward<Ts>(args)...);
+static std::unique_ptr<ISignal> make_unique_multidelegate(Ts&&... args) {
+  return std::make_unique<detail::SignalBase<TResult,Ts...> >(std::forward<Ts>(args)...);
 }
 
 template <typename TResult=void, typename... Ts>
-static std::unique_ptr<IMultidelegate> make_unique_multidelegate(std::nullptr_t) {
-  return std::make_unique<detail::Multidelegate<TResult,Ts...> >(std::nullptr_t{});
+static std::unique_ptr<ISignal> make_unique_multidelegate(std::nullptr_t) {
+  return std::make_unique<detail::SignalBase<TResult,Ts...> >(std::nullptr_t{});
 }
 
 }// namespace factory

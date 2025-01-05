@@ -23,12 +23,7 @@ class DelegateResult
  public:
   DelegateResult()
       : default_value_(), value_(default_value_), has_value_(false) {
-    static_assert(call_helper::is_same_v<TValue,void> || call_helper::is_copy_constructible_v<TValue>, "Result type must be copyable");
-  }
-
-  DelegateResult(const TValue& value)
-      : value_(value), has_value_(true) {
-    static_assert(call_helper::is_same_v<TValue,void> || call_helper::is_copy_constructible_v<TValue>, "Result type must be copyable");
+    static_assert(std::is_same<TValue,void>::value || std::is_copy_constructible<TValue>::value, "Result type must be copyable");
   }
 
   virtual ~DelegateResult() override { clear(); }
@@ -90,6 +85,10 @@ class DelegateResult
   int size_bytes() const override { return sizeof(value_); }
 
  private:
+  // copying is prohibited because DelegateResult owns value (deleter may be called)
+  DelegateResult(const DelegateResult&) {}
+  DelegateResult& operator= (const DelegateResult& other) { return *this; }
+   
   typename std::decay<TValue>::type default_value_;
   typename std::decay<TValue>::type value_;
   bool has_value_;
@@ -111,6 +110,26 @@ class DelegateResult<void>
   int size_bytes() const override { return 0; }
   size_t hash_code() const override { return typeid(void).hash_code(); }
   void clear() override {}
+};
+
+/// \brief    Move delegate result for non-void types
+template<typename TResult>
+struct MoveDelegateResult {
+  bool operator()(IDelegateResult* from, IDelegateResult* to) {
+    using result_noref = typename std::decay<TResult>::type;
+    result_noref ret_val;
+    std::function<void(void*)> deleter;
+    if (from->detach_ptr(&ret_val, sizeof(ret_val), deleter)) {
+      return to->set_ptr(&ret_val, typeid(TResult).hash_code(), deleter);
+    }
+    return false;
+  }
+};
+
+/// \brief    Move delegate result for void types
+template<>
+struct MoveDelegateResult<void> {
+  bool operator()(IDelegateResult* from, IDelegateResult* to) { return true; }
 };
 
 }//namespace detail

@@ -10,13 +10,13 @@
 #include <cstddef>
 
 #include "../i_delegate.h"
-#include "call_helper.hpp"
 #include "tuple_runtime.hpp"
 
 #include "delegate_result_impl.hpp"
 #include "delegate_args_impl.hpp"
 
 namespace delegates {
+
 namespace detail {
 
 /// \brief    Delegate base implementation. Void or non-void return types are supported
@@ -40,12 +40,12 @@ private:
 };
 
 
-/// \brief    Multidelegate implementation
+/// \brief    SignalBase implementation
 template<typename TResult, typename... Args>
-struct Multidelegate : public virtual IMultidelegate {
-  Multidelegate(Args&&... args) : params_(std::forward<Args>(args)...) {}
-  Multidelegate(std::nullptr_t) : params_(std::nullptr_t{}) {}
-  ~Multidelegate() override { remove_all(); }
+struct SignalBase : public virtual ISignal {
+  SignalBase(Args&&... args) : params_(std::forward<Args>(args)...) {}
+  SignalBase(std::nullptr_t) : params_(std::nullptr_t{}) {}
+  ~SignalBase() override { remove_all(); }
 
   virtual bool call() override {
     bool result = true;
@@ -131,7 +131,9 @@ struct Multidelegate : public virtual IMultidelegate {
   }
 
  private:
-  // Copy args without deleters. They are accessible only during source arguments list is alive. Must be released before source
+  // Copy arguments pointers without deleters. 
+  // They are accessible only during source arguments list is alive. 
+  // Destination container must be released before source
   static bool args_weak_copy(IDelegateArgs* from, IDelegateArgs* to) {
     if (!from || !to || from->size() != to->size())  return false;
 
@@ -160,21 +162,16 @@ struct Multidelegate : public virtual IMultidelegate {
     if (!args_weak_copy(&params_, call->args()))
       return false;
 
-    bool ret = call->call();
-    call->args()->clear();
+    bool ret = false;
 
-    if (!ret)
-      return false;
-
-    if constexpr (!call_helper::is_same_v<void, TResult>) {
-      result_noref ret_val;
-      std::function<void(void*)> deleter;
-      if (call->result()->detach_ptr(&ret_val, sizeof(ret_val), deleter)) {
-        result()->set_ptr(&ret_val, typeid(TResult).hash_code(), deleter);
-      }
+    try {
+      ret = call->call();
+    } catch (...) {
+      call->args()->clear(); // clear arguments weak copy
+      throw;
     }
 
-    return true;
+    return ret ? MoveDelegateResult<TResult>{}(call->result(), result()) : false;
   }
 
   struct SharedDelegateType {
@@ -199,9 +196,10 @@ struct Multidelegate : public virtual IMultidelegate {
 
 using namespace detail;
 
-/// Class method deferred call template for all result types but void
+/// \brief    Class method deferred call template for all result types but void
 template <class TClass, typename TResult, typename... Ts>
-class MethodDelegate : public detail::DelegateBase<TResult, Ts...> {
+class MethodDelegate 
+  : public detail::DelegateBase<TResult, Ts...> {
  private:
   typedef TResult (TClass::*MethodType)(Ts...);
   TClass* callee_;
@@ -222,11 +220,11 @@ class MethodDelegate : public detail::DelegateBase<TResult, Ts...> {
 
  private:
   bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args) override {
-    return perform_call(result, args, call_helper::gen_seq<sizeof...(Ts)>{});
+    return perform_call(result, args, std::make_index_sequence<sizeof...(Ts)>{});
   }
 
   template <std::size_t... Is>
-  bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args, call_helper::index<Is...>) {
+  bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args, std::index_sequence<Is...>) {
     auto callee = callee_;
     if (!callee) return false;
 
@@ -255,11 +253,11 @@ class ConstMethodDelegate
 
  private:
   bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args) override {
-    return perform_call(result, args, call_helper::gen_seq<sizeof...(Ts)>{});
+    return perform_call(result, args, std::make_index_sequence<sizeof...(Ts)>{});
   }
 
   template <std::size_t... Is>
-  bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args, call_helper::index<Is...>) {
+  bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args, std::index_sequence<Is...>) {
     auto callee = callee_;
     if (!callee)
       return false;
@@ -292,11 +290,11 @@ class MethodDelegate<TClass, void, Ts...>
 
  private:
   bool perform_call(DelegateResult<void>&, DelegateArgs<Ts...>& args) override {
-    return perform_call(args, call_helper::gen_seq<sizeof...(Ts)>{});
+    return perform_call(args, std::make_index_sequence<sizeof...(Ts)>{});
   }
 
   template <std::size_t... Is>
-  bool perform_call(DelegateArgs<Ts...>& args, call_helper::index<Is...>) {
+  bool perform_call(DelegateArgs<Ts...>& args, std::index_sequence<Is...>) {
     auto callee = callee_;
     if (!callee) return false;
 
@@ -314,7 +312,7 @@ template <typename TResult, typename... Ts>
 class FunctionalDelegate
   : public detail::DelegateBase<TResult, Ts...> {
 public:
-  FunctionalDelegate(std::function<TResult(Ts...)> func, Ts&&... args)
+  explicit FunctionalDelegate(std::function<TResult(Ts...)> func, Ts&&... args)
     :detail::DelegateBase<TResult,Ts...>(std::forward<Ts>(args)...)
     ,func_(func) {}
 
@@ -325,11 +323,11 @@ public:
   ~FunctionalDelegate() override = default;
 private:
   bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args) override {
-    return perform_call(result, args, call_helper::gen_seq<sizeof...(Ts)>{});
+    return perform_call(result, args, std::make_index_sequence<sizeof...(Ts)>{});
   }
 
   template <std::size_t... Is>
-  bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args, call_helper::index<Is...>) {
+  bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args, std::index_sequence<Is...>) {
     result.set<TResult>(func_(std::get<Is>(args.get_tuple())...));
     return true;
   }
@@ -342,7 +340,7 @@ template <typename... Ts>
 class FunctionalDelegate<void, Ts...>
   : public detail::DelegateBase<void,Ts...> {
  public:
-  FunctionalDelegate(std::function<void(Ts...)> func, Ts&&... args)
+  explicit FunctionalDelegate(std::function<void(Ts...)> func, Ts&&... args)
     :detail::DelegateBase<void,Ts...>(std::forward<Ts>(args)...)
     ,func_(func) {}
 
@@ -353,51 +351,78 @@ class FunctionalDelegate<void, Ts...>
   ~FunctionalDelegate() = default;
 private:
   bool perform_call(DelegateResult<void>& result, DelegateArgs<Ts...>& args) override {
-    perform_call(args, call_helper::gen_seq<sizeof...(Ts)>{});
+    perform_call(args, std::make_index_sequence<sizeof...(Ts)>{});
     return true;
   }
 
   template<std::size_t... Is>
-  void perform_call(DelegateArgs<Ts...>& args, call_helper::index<Is...>) {
+  void perform_call(DelegateArgs<Ts...>& args, std::index_sequence<Is...>) {
     func_(std::get<Is>(args.get_tuple())...);
   }
 
   std::function<void(Ts...)> func_;
 };
 
-/// \brief    Lambda delegate implementation for all result types (void and non-void)
+/// \brief    Lambda delegate implementation for non-void result types
 template <typename TResult, typename F, typename... Ts>
 class LambdaDelegate
   : public detail::DelegateBase<TResult,Ts...> {
 public:
-  LambdaDelegate(F && lambda, Ts&&... args)
-   :fn_(new std::function<TResult(Ts...)>(std::move(lambda)))
+  explicit LambdaDelegate(F && lambda, Ts&&... args)
+   :func_(std::function<TResult(Ts...)>(std::move(lambda)))
    ,detail::DelegateBase<TResult,Ts...>(std::forward<Ts>(args)...) {
   }
 
   LambdaDelegate(F && lambda, std::nullptr_t)
-   :fn_(new std::function<TResult(Ts...)>(std::move(lambda)))
+   :func_(std::function<TResult(Ts...)>(std::move(lambda)))
    ,detail::DelegateBase<TResult,Ts...>(std::nullptr_t{}) {
   }
 
-  virtual ~LambdaDelegate() override {
-    if (fn_) {
-      delete fn_;
-      fn_ = nullptr;
-    }
-  }
+  ~LambdaDelegate() override = default;
 
 private:
   bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args) override {
-    if constexpr (!call_helper::is_same_v<void, TResult>) {
-      result.set<TResult>(call_helper::DoFunctionCall(*fn_, args.get_tuple(), call_helper::gen_seq<sizeof...(Ts)>{}));
-    } else {
-      call_helper::DoFunctionCall(*fn_, args.get_tuple(), call_helper::gen_seq<sizeof...(Ts)>{});
-    }
+    result.set<TResult>(perform_function_call(args.get_tuple(), std::make_index_sequence<sizeof...(Ts)>{}));
     return true;
   }
 
-  std::function<TResult(Ts...)>* fn_;
+  template <std::size_t... Is>
+  TResult perform_function_call(typename std::tuple<Ts...>& tup, std::index_sequence<Is...>) {
+    return func_(std::get<Is>(tup)...);
+  }
+
+  std::function<TResult(Ts...)> func_;
+};
+
+/// \brief    Lambda delegate implementation for void result type
+template <typename F, typename... Ts>
+class LambdaDelegate<void, F, Ts...>
+  : public detail::DelegateBase<void, Ts...> {
+public:
+  explicit LambdaDelegate(F&& lambda, Ts&&... args)
+    :func_(std::function<void(Ts...)>(std::move(lambda)))
+    , detail::DelegateBase<void, Ts...>(std::forward<Ts>(args)...) {
+  }
+
+  LambdaDelegate(F&& lambda, std::nullptr_t)
+    :func_(std::function<void(Ts...)>(std::move(lambda)))
+    , detail::DelegateBase<void, Ts...>(std::nullptr_t{}) {
+  }
+
+  ~LambdaDelegate() override = default;
+
+private:
+  bool perform_call(DelegateResult<void>&, DelegateArgs<Ts...>& args) override {
+    perform_function_call(args.get_tuple(), std::make_index_sequence<sizeof...(Ts)>{});
+    return true;
+  }
+
+  template <std::size_t... Is>
+  void perform_function_call(typename std::tuple<Ts...>& tup, std::index_sequence<Is...>) {
+    func_(std::get<Is>(tup)...);
+  }
+
+  std::function<void(Ts...)> func_;
 };
 
 /// \brief    Delegate for class method call by shared pointer implementation. Both void and non-void result types are supported
@@ -461,11 +486,11 @@ class WeakMethodDelegate
   ~WeakMethodDelegate() = default;
  private:
   bool perform_call(DelegateResult<TResult>& result, DelegateArgs<Ts...>& args) override {
-    return perform_call(result, args.get_tuple(), call_helper::gen_seq<sizeof...(Ts)>{});
+    return perform_call(result, args.get_tuple(), std::make_index_sequence<sizeof...(Ts)>{} /* call_helper::gen_seq<sizeof...(Ts)>{}*/ );
   }
 
   template <std::size_t... Is>
-  bool perform_call(DelegateResult<TResult>& result, std::tuple<Ts...>& tup, call_helper::index<Is...>) {
+  bool perform_call(DelegateResult<TResult>& result, std::tuple<Ts...>& tup, std::index_sequence<Is...>) {
     auto callee = callee_.lock();
     if (!callee)
       return false;
@@ -483,7 +508,7 @@ template <class TClass, typename... Ts>
 class WeakMethodDelegate<TClass,void,Ts...>
   : public detail::DelegateBase<void,Ts...> {
  public:
-  WeakMethodDelegate(std::weak_ptr<TClass> callee, void(TClass::*method)(Ts...), Ts&&... args)
+  explicit WeakMethodDelegate(std::weak_ptr<TClass> callee, void(TClass::*method)(Ts...), Ts&&... args)
     :detail::DelegateBase<void,Ts...>(std::forward<Ts>(args)...)
     ,callee_(callee)
     ,mem_fn_(method) {}
@@ -496,7 +521,7 @@ class WeakMethodDelegate<TClass,void,Ts...>
   ~WeakMethodDelegate() = default;
  private:
   template <std::size_t... Is>
-  bool perform_call(std::tuple<Ts...>& tup, call_helper::index<Is...>) {
+  bool perform_call(std::tuple<Ts...>& tup, std::index_sequence<Is...>) {
     auto callee = callee_.lock();
     if (!callee)
       return false;
@@ -505,17 +530,13 @@ class WeakMethodDelegate<TClass,void,Ts...>
   }
 
   bool perform_call(DelegateResult<void>& result, DelegateArgs<Ts...>& args) override {
-    return perform_call(args.get_tuple(), call_helper::gen_seq<sizeof...(Ts)>{});
+    return perform_call(args.get_tuple(), std::make_index_sequence<sizeof...(Ts)>{} /* call_helper::gen_seq<sizeof...(Ts)>{}*/ );
   }
 
   typedef void (TClass::*MethodType)(Ts...);
   std::weak_ptr<TClass> callee_;
   MethodType mem_fn_;
 };
-
-
-///////////////////
-
 
 }//namespace delegates
 

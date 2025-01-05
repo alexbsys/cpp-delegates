@@ -1,9 +1,7 @@
 
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.10)
+project(cpp-delegates)
 
-
-
-#add_subdirectory(googletest)
-add_subdirectory(tests)
 add_subdirectory(example)
 
+add_subdirectory(tests)

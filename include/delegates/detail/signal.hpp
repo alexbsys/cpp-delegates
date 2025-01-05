@@ -11,7 +11,7 @@
 namespace delegates {
 
 template<typename TResult, typename ...TArgs>
-struct Signal : public virtual IMultidelegate {
+struct Signal : public virtual ISignal {
   Signal() : delegate_(factory::make_unique_multidelegate<TResult, TArgs...>(std::nullptr_t{})) {}
 
   ~Signal() override {
@@ -101,7 +101,7 @@ struct Signal : public virtual IMultidelegate {
   IDelegate* get_delegate() const { return delegate_.get(); }
 
 private:
-  std::unique_ptr<IMultidelegate> delegate_;
+  std::unique_ptr<ISignal> delegate_;
   std::list<Signal*> ref_signals_;
   std::list<Signal*> ref_by_signals_;
   mutable std::mutex mutex_;
