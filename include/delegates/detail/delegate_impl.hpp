@@ -23,8 +23,9 @@ namespace detail {
 template<typename TResult, typename... Args>
 struct DelegateBase
   : public virtual IDelegate {
-  DelegateBase(Args&&... args) : params_(std::forward<Args>(args)...) {}
-  DelegateBase(std::nullptr_t) : params_(std::nullptr_t{}) {}
+//  DelegateBase(std::nullptr_t) : params_(std::nullptr_t{}) {}
+  DelegateBase(Args&&... args) : params_(DelegateArgs<Args...>(std::forward<Args>(args)...)) {}
+  DelegateBase(DelegateArgs<Args...> && params) : params_(std::move(params)) {}
   ~DelegateBase() = default;
 
   bool call() override { return perform_call(result_, params_); }
@@ -42,8 +43,13 @@ private:
 
 /// \brief    SignalBase implementation
 template<typename TResult, typename... Args>
-struct SignalBase : public virtual ISignal {
+class SignalBase : public virtual ISignal {
+  SignalBase(const SignalBase&) {}
+  SignalBase& operator=(const SignalBase&) { return *this;  }
+
+public:
   SignalBase(Args&&... args) : params_(std::forward<Args>(args)...) {}
+  SignalBase(DelegateArgs<Args...>&& params) : params_(std::move(params)) {}
   SignalBase(std::nullptr_t) : params_(std::nullptr_t{}) {}
   ~SignalBase() override { remove_all(); }
 
@@ -211,10 +217,16 @@ class MethodDelegate
      ,callee_(callee)
      ,mem_fn_(method) {}
 
-  MethodDelegate(TClass* callee, TResult (TClass::*method)(Ts...), std::nullptr_t)
+/*  MethodDelegate(TClass* callee, TResult(TClass::* method)(Ts...), std::nullptr_t)
     :detail::DelegateBase<TResult, Ts...>(std::nullptr_t{})
       ,callee_(callee)
       ,mem_fn_(method) {}
+      */
+  MethodDelegate(TClass* owner, TResult (TClass::* member)(Ts...), DelegateArgs<Ts...>&& params)
+    :detail::DelegateBase<TResult, Ts...>(std::move(params))
+    , callee_(owner)
+    , mem_fn_(member) {}
+
 
   ~MethodDelegate() = default;
 
@@ -244,10 +256,16 @@ class ConstMethodDelegate
      ,callee_(owner)
      ,mem_fn_(member) {}
 
-  ConstMethodDelegate(const TClass* owner, TResult (TClass::*member)(Ts...) const, std::nullptr_t)
+/*  ConstMethodDelegate(const TClass* owner, TResult(TClass::* member)(Ts...) const, std::nullptr_t)
      :detail::DelegateBase<TResult, Ts...>(std::nullptr_t{})
      ,callee_(owner)
      ,mem_fn_(member) {}
+     */
+
+  ConstMethodDelegate(const TClass* owner, TResult(TClass::* member)(Ts...) const, DelegateArgs<Ts...>&& params)
+    :detail::DelegateBase<TResult, Ts...>(std::move(params))
+    , callee_(owner)
+    , mem_fn_(member) {}
 
   ~ConstMethodDelegate() = default;
 
@@ -281,11 +299,17 @@ class MethodDelegate<TClass, void, Ts...>
     ,callee_(owner)
     ,mem_fn_(member) {}
 
+  MethodDelegate(TClass* owner, void (TClass::* member)(Ts...), DelegateArgs<Ts...>&& params)
+    :detail::DelegateBase<void, Ts...>(std::move(params))
+    , callee_(owner)
+    , mem_fn_(member) {}
+
+/*
   MethodDelegate(TClass* owner, void (TClass::*member)(Ts...), std::nullptr_t)
     :detail::DelegateBase<void, Ts...>(std::nullptr_t{})
     ,callee_(owner)
     ,mem_fn_(member) {}
-
+    */
   ~MethodDelegate() = default;
 
  private:
@@ -316,9 +340,15 @@ public:
     :detail::DelegateBase<TResult,Ts...>(std::forward<Ts>(args)...)
     ,func_(func) {}
 
-  FunctionalDelegate(std::function<TResult(Ts...)> func, std::nullptr_t)
-    :detail::DelegateBase<TResult,Ts...>(std::nullptr_t{})
-    ,func_(func) {}
+//  FunctionalDelegate(std::function<TResult(Ts...)> func, std::nullptr_t)
+//    :detail::DelegateBase<TResult,Ts...>(std::nullptr_t{})
+//    ,func_(func) {}
+
+  FunctionalDelegate(std::function<TResult(Ts...)> func, DelegateArgs<Ts...>&& params)
+    :func_(func)
+    , detail::DelegateBase<TResult, Ts...>(std::move(params)) {
+  }
+
 
   ~FunctionalDelegate() override = default;
 private:
@@ -344,9 +374,14 @@ class FunctionalDelegate<void, Ts...>
     :detail::DelegateBase<void,Ts...>(std::forward<Ts>(args)...)
     ,func_(func) {}
 
-  FunctionalDelegate(std::function<void(Ts...)> func, std::nullptr_t)
-    :detail::DelegateBase<void,Ts...>(std::nullptr_t{})
-    ,func_(func) {}
+//  FunctionalDelegate(std::function<void(Ts...)> func, std::nullptr_t)
+//    :detail::DelegateBase<void,Ts...>(std::nullptr_t{})
+//    ,func_(func) {}
+  FunctionalDelegate(std::function<void(Ts...)> func, DelegateArgs<Ts...>&& params)
+    :func_(func)
+    , detail::DelegateBase<void, Ts...>(std::move(params)) {
+  }
+
 
   ~FunctionalDelegate() = default;
 private:
@@ -373,9 +408,14 @@ public:
    ,detail::DelegateBase<TResult,Ts...>(std::forward<Ts>(args)...) {
   }
 
-  LambdaDelegate(F && lambda, std::nullptr_t)
+/*  LambdaDelegate(F&& lambda, std::nullptr_t)
    :func_(std::function<TResult(Ts...)>(std::move(lambda)))
    ,detail::DelegateBase<TResult,Ts...>(std::nullptr_t{}) {
+  }*/
+
+  explicit LambdaDelegate(F&& lambda, DelegateArgs<Ts...> && params)
+    :func_(std::function<TResult(Ts...)>(std::move(lambda)))
+    , detail::DelegateBase<TResult, Ts...>(std::move(params)) {
   }
 
   ~LambdaDelegate() override = default;
@@ -409,6 +449,11 @@ public:
     , detail::DelegateBase<void, Ts...>(std::nullptr_t{}) {
   }
 
+  explicit LambdaDelegate(F&& lambda, DelegateArgs<Ts...>&& params)
+    :func_(std::function<void(Ts...)>(std::move(lambda)))
+    , detail::DelegateBase<void, Ts...>(std::move(params)) {
+  }
+
   ~LambdaDelegate() override = default;
 
 private:
@@ -436,10 +481,15 @@ class SharedMethodDelegate
     :MethodDelegate<TClass, TResult, Ts...>(callee.get(), method, std::forward<Ts>(args)...)
     ,callee_ptr_(callee) {}
 
-  SharedMethodDelegate(std::shared_ptr<TClass> callee,
+/*  SharedMethodDelegate(std::shared_ptr<TClass> callee,
                        TResult (TClass::*method)(Ts...), std::nullptr_t)
     :MethodDelegate<TClass, TResult, Ts...>(callee.get(), method, std::nullptr_t{})
     ,callee_ptr_(callee) {}
+    */
+  SharedMethodDelegate(std::shared_ptr<TClass> callee,
+    TResult(TClass::* method)(Ts...), DelegateArgs<Ts...> && params)
+    :MethodDelegate<TClass, TResult, Ts...>(callee.get(), method, std::move(params))
+    , callee_ptr_(callee) {}
 
   ~SharedMethodDelegate() = default;
  private:
@@ -456,10 +506,15 @@ public:
     Ts&&... args)
     :ConstMethodDelegate<TClass, TResult, Ts...>(callee.get(), method, std::forward<Ts>(args)...)
     , callee_ptr_(callee) {}
-
+/*
   SharedConstMethodDelegate(std::shared_ptr<TClass> callee,
     TResult(TClass::* method)(Ts...) const, std::nullptr_t)
     :ConstMethodDelegate<TClass, TResult, Ts...>(callee.get(), method, std::nullptr_t{})
+    , callee_ptr_(callee) {}
+    */
+  SharedConstMethodDelegate(std::shared_ptr<TClass> callee,
+    TResult(TClass::* method)(Ts...) const, DelegateArgs<Ts...> && params)
+    :ConstMethodDelegate<TClass, TResult, Ts...>(callee.get(), method, std::move(params))
     , callee_ptr_(callee) {}
 
   ~SharedConstMethodDelegate() = default;
@@ -477,11 +532,16 @@ class WeakMethodDelegate
     :detail::DelegateBase<TResult,Ts...>(std::forward<Ts>(args)...)
     ,callee_(callee)
     ,mem_fn_(mem_fn) {}
-
+/*
   WeakMethodDelegate(std::weak_ptr<TClass> callee, TResult (TClass::*mem_fn)(Ts...), std::nullptr_t)
     :detail::DelegateBase<TResult,Ts...>(std::nullptr_t{})
     ,callee_(callee)
     ,mem_fn_(mem_fn) {}
+    */
+  WeakMethodDelegate(std::weak_ptr<TClass> callee, TResult(TClass::* mem_fn)(Ts...), DelegateArgs<Ts...> && params)
+    :detail::DelegateBase<TResult, Ts...>(std::move(params))
+    , callee_(callee)
+    , mem_fn_(mem_fn) {}
 
   ~WeakMethodDelegate() = default;
  private:

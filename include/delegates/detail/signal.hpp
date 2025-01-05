@@ -3,6 +3,7 @@
 #define SIGNAL_HEADER
 
 #include "delegate_impl.hpp"
+#include "factory.hpp"
 #include "../i_delegate.h"
 
 #include <list>
@@ -12,7 +13,8 @@ namespace delegates {
 
 template<typename TResult, typename ...TArgs>
 struct Signal : public virtual ISignal {
-  Signal() : delegate_(factory::make_unique_multidelegate<TResult, TArgs...>(std::nullptr_t{})) {}
+  Signal() : delegate_(delegates::factory::template make_unique_multidelegate<TResult, TArgs...>()) {}
+  Signal(TArgs... args) : delegate_(delegates::factory::template make_unique_multidelegate<TResult, TArgs...>(std::forward<TArgs>(args)...)) {}
 
   ~Signal() override {
     std::list<Signal*> ref_by_signals;

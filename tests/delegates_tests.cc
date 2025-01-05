@@ -93,7 +93,8 @@ TEST_F(DeferredCallTests, TestLambda) {
 
   delete call;
 
-  auto call2 = delegates::factory::make_lambda_delegate<int,int,int>([](int a, int b) -> int { return a+b; }, 4, 5);
+  auto call2 = delegates::factory::make_lambda_delegate<int,int,int>([](int a, int b) -> int { return a+b; }, 
+    delegates::DelegateArgs(4, 5));
   call2->call();
   v = call2->result()->get<int>();
   ASSERT_EQ(v, 9);
@@ -129,9 +130,8 @@ TEST_F(DeferredCallTests, TestClassMemberCall) {
   };
 
   TestClass test_class;
-  //std::shared_ptr<TestClass> test_class_ptr = std::make_shared<TestClass>()
 
-  IDelegate* delegate = delegates::factory::make_method_delegate(&test_class, &TestClass::Method, std::nullptr_t{});
+  IDelegate* delegate = delegates::factory::make_method_delegate(&test_class, &TestClass::Method);
   delegate->args()->set<std::string>(0, kTestValue);
 
   bool r = delegate->call();
@@ -157,7 +157,7 @@ TEST_F(DeferredCallTests, TestClassConstMethodCall) {
 
   TestClass test_class;
 
-  IDelegate* delegate = delegates::factory::make_const_method_delegate(&test_class, &TestClass::Method, std::nullptr_t{});
+  IDelegate* delegate = delegates::factory::make_const_method_delegate(&test_class, &TestClass::Method);
   delegate->args()->set<std::string>(0, kTestValue);
 
   bool r = delegate->call();
@@ -184,7 +184,7 @@ TEST_F(DeferredCallTests, TestClassSharedPtrMemberCall) {
 
   std::shared_ptr<TestClass> test_class_ptr = std::make_shared<TestClass>();
 
-  IDelegate* delegate = delegates::factory::make_method_delegate(test_class_ptr, &TestClass::Method, std::nullptr_t{});
+  IDelegate* delegate = delegates::factory::make_method_delegate(test_class_ptr, &TestClass::Method);
   delegate->args()->set<std::string>(0, kTestValue);
 
   bool r = delegate->call();
@@ -213,7 +213,7 @@ TEST_F(DeferredCallTests, TestClassWeakPtrMethodCallNonVoidResult) {
   std::shared_ptr<TestClass> test_class_ptr = std::make_shared<TestClass>();
   std::weak_ptr<TestClass> test_class_weak = test_class_ptr;
 
-  IDelegate* delegate = delegates::factory::make_method_delegate(test_class_weak, &TestClass::Method, std::nullptr_t{});
+  IDelegate* delegate = delegates::factory::make_method_delegate(test_class_weak, &TestClass::Method);
   delegate->args()->set<std::string>(0, kTestValue);
 
   bool r = delegate->call();
@@ -279,7 +279,7 @@ TEST_F(DeferredCallTests, TestClassSharedPtrConstMethodCall) {
 
   std::shared_ptr<TestClass> test_class_ptr = std::make_shared<TestClass>();
 
-  IDelegate* delegate = delegates::factory::make_const_method_delegate(test_class_ptr, &TestClass::Method, std::nullptr_t{});
+  IDelegate* delegate = delegates::factory::make_const_method_delegate(test_class_ptr, &TestClass::Method);
   delegate->args()->set<std::string>(0, kTestValue);
 
   bool r = delegate->call();
@@ -312,7 +312,8 @@ TEST_F(DeferredCallTests, TestLambda_ReplaceConstRefArgument) {
   std::vector<int> c = { 4, 5 };
 
   auto call = delegates::factory::make_lambda_delegate<int, int, const std::vector<int>& >(
-    [](int a, const std::vector<int>& b) -> int { return a + b[0] + b[1]; }, a, b);
+    [](int a, const std::vector<int>& b) -> int { return a + b[0] + b[1]; }, 
+    delegates::DelegateArgsValues<int, const std::vector<int>& >(a, b));
 
   call->args()->set(0, a);
   call->args()->set(1, c);
@@ -487,7 +488,7 @@ TEST_F(DeferredCallTests, TestLambda_CallFromDifferentThread) {
 }
 
 TEST_F(DeferredCallTests, TestDelegates_MultiCalls_VoidResult) {
-  auto delegates = delegates::factory::make_shared_multidelegate<void, int, std::string>(std::nullptr_t{});
+  auto delegates = delegates::factory::make_shared_signal<void, int, std::string>(std::nullptr_t{});
 
   int r1i = 0;
   std::string r1s;
@@ -547,7 +548,7 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_RefParamsWithResult) {
 
   static const std::string& kTestValue = "hello";
   std::string kEmptyValue;
-  auto delegates = delegates::factory::make_shared_multidelegate<TestResult, int, const std::string&>(42, kTestValue);
+  auto delegates = delegates::factory::make_shared_signal<TestResult, int, const std::string&>(42, kTestValue);
 
   int r1i = 0;
   bool r1s = false;
@@ -563,16 +564,15 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_RefParamsWithResult) {
       r1i = i;
       r1s = s == kTestValue;
       return TestResult { 1 };
-    },
-    std::nullptr_t{});
+    });
 
   auto call2 = delegates::factory::make_lambda_delegate<TestResult, int, const std::string&>(
-    [&r2i, &r2s](int i, std::string s)->TestResult {
+    [&r2i, &r2s](int i, const std::string& s)->TestResult {
       r2i = i;
       r2s = s == kTestValue;
       return TestResult { 2 };
     },
-    0, kEmptyValue);
+    delegates::DelegateArgsValues<int, const std::string&>(0, kEmptyValue));
 
   std::shared_ptr<IDelegate> call3 = delegates::factory::make_shared<TestResult, int, const std::string&>(
     [&r3i, &r3s](int i, std::string s)->TestResult {

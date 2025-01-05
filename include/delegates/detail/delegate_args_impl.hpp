@@ -21,7 +21,12 @@ template<std::size_t N, typename... Args>
 class DelegateArgsImpl
   : public virtual delegates::IDelegateArgs {
  public:
-  explicit DelegateArgsImpl(Args&&... args): args_(std::forward<Args>(args)...) { setup_deleters(); }
+  DelegateArgsImpl(DelegateArgsImpl&& params) 
+    : default_args_(std::move(params.default_args_))
+    , args_(std::move(params.args_))
+    , deleters_(std::move(params.deleters_)) {}
+
+  DelegateArgsImpl(Args&&... args): args_(std::forward<Args>(args)...) { setup_deleters(); }
 
   DelegateArgsImpl(std::nullptr_t)
     : default_args_(std::tuple<typename std::decay<Args>::type...> {})  // default args used for empty initialization when some of arguments are references
@@ -111,18 +116,25 @@ public:
 private:
   std::tuple<> args_;
 };
+}//namespace detail
 
 template<typename ...TArgs>
-struct DelegateArgs : public DelegateArgsImpl<sizeof...(TArgs), TArgs...> {
-  explicit DelegateArgs(TArgs&&... args) : DelegateArgsImpl(std::forward<TArgs>(args)...) {}
-  DelegateArgs(std::nullptr_t) : DelegateArgsImpl(std::nullptr_t{}) {}
+struct DelegateArgs 
+  : public detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...> {
+  DelegateArgs(DelegateArgs&& other) noexcept : detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...>(std::move(other)) {}
+  DelegateArgs(TArgs&&... args) : detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...>(std::forward<TArgs>(args)...) {}
+  DelegateArgs(std::nullptr_t) : detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...>(std::nullptr_t{}) {}
   ~DelegateArgs() = default;
 private:
   DelegateArgs(const DelegateArgs&) {}
   DelegateArgs& operator= (const DelegateArgs& other) { return *this; }
 };
 
-}//namespace detail
+template<typename ...TArgs>
+static typename DelegateArgs<TArgs...> DelegateArgsValues(TArgs... args) {
+  return DelegateArgs<TArgs...>(std::forward<TArgs>(args)...);
+}
+
 }//namespace delegates
 
 #endif //DELEGATE_ARGS_IMPL_HEADER

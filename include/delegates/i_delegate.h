@@ -123,12 +123,14 @@ struct IDelegateArgs {
   /// \return  copy of argument value
   template<typename T>
   T get(size_t idx) {
+    using value_type = typename std::decay<T>::type;
+
     if (typeid(T).hash_code() != hash_code(idx))
       throw std::exception("Wrong type provided");
 
     void* p = get_ptr(idx);
     if (p == nullptr)
-      return T();
+      return std::move( value_type() );
 
     T* pv = reinterpret_cast<T*>(p);
     return *pv;
