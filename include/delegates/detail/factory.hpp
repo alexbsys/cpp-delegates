@@ -230,6 +230,31 @@ static std::shared_ptr<IDelegate> make_shared_method_delegate(
   return std::make_shared<MethodDelegate<TClass, TResult, Ts...> >(callee, method, std::move(params));
 }
 
+template <class TClass, typename TResult, typename... Ts>
+static std::shared_ptr<IDelegate> make_shared_const_method_delegate(
+  const TClass* callee, TResult(TClass::* method)(Ts...) const,  Ts... args) {
+  return std::make_shared<ConstMethodDelegate<TClass, TResult, Ts...> >(callee, method, std::forward<Ts>(args)...);
+}
+
+template <class TClass, typename TResult, typename... Ts>
+static std::shared_ptr<IDelegate> make_shared_const_method_delegate(const TClass* callee, TResult(TClass::* method)(Ts...) const,
+  DelegateArgs<Ts...>&& params = DelegateArgs<Ts...>(std::nullptr_t{})) {
+  return std::make_shared<ConstMethodDelegate<TClass, TResult, Ts...> >(callee, method, std::move(params));
+}
+
+template <class TClass, typename TResult, typename... Ts>
+static std::shared_ptr<IDelegate> make_shared_const_method_delegate(
+  std::shared_ptr<TClass> callee, TResult(TClass::* method)(Ts...) const, Ts... args) {
+  return std::make_shared<SharedConstMethodDelegate<TClass, TResult, Ts...> >(callee, method, std::forward<Ts>(args)...);
+}
+
+template <class TClass, typename TResult, typename... Ts>
+static std::shared_ptr<IDelegate> make_shared_const_method_delegate(std::shared_ptr<TClass> callee, TResult(TClass::* method)(Ts...) const,
+  DelegateArgs<Ts...>&& params = DelegateArgs<Ts...>(std::nullptr_t{})) {
+  return std::make_shared<SharedConstMethodDelegate<TClass, TResult, Ts...> >(callee, method, std::move(params));
+}
+
+
 template <typename TResult, typename... Ts>
 static std::shared_ptr<IDelegate> make_shared_function_delegate(
   TResult f(Ts...), Ts... args) {
@@ -394,6 +419,48 @@ template <typename TClass, typename TResult, typename... Ts>
 static std::shared_ptr<IDelegate> make_shared(std::shared_ptr<TClass> callee, TResult (TClass::*method)(Ts...), Ts... args) {
   return make_shared_method_delegate<TClass, TResult, Ts...>(callee, method, std::forward<Ts>(args)...);
 }
+
+template <typename TClass, typename TResult, typename... Ts>
+static std::shared_ptr<IDelegate> make_shared(std::shared_ptr<TClass> callee, TResult(TClass::* method)(Ts...), DelegateArgs<Ts...>&& params = DelegateArgs<Ts...>(std::nullptr_t{})) {
+  return make_shared_method_delegate<TClass, TResult, Ts...>(callee, method, std::move(params));
+}
+
+/*
+template <class TClass, typename TResult, typename... Ts>
+static std::shared_ptr<IDelegate> make_shared_const_method_delegate(
+  const TClass* callee, TResult(TClass::* method)(Ts...) const, Ts... args) {
+  return std::make_shared<ConstMethodDelegate<TClass, TResult, Ts...> >(callee, method, std::forward<Ts>(args)...);
+}
+
+template <class TClass, typename TResult, typename... Ts>
+static std::shared_ptr<IDelegate> make_shared_const_method_delegate(const TClass* callee, TResult(TClass::* method)(Ts...) const,
+  DelegateArgs<Ts...>&& params = DelegateArgs<Ts...>(std::nullptr_t{})) {
+  return std::make_shared<ConstMethodDelegate<TClass, TResult, Ts...> >(callee, method, std::move(params));
+}
+*/
+
+
+template <typename TClass, typename TResult, typename... Ts>
+static std::shared_ptr<IDelegate> make_shared(const TClass* callee, TResult(TClass::* method)(Ts...) const, Ts... args) {
+  return make_shared_const_method_delegate<TClass, TResult, Ts...>(callee, method, std::forward<Ts>(args)...);
+}
+
+template <typename TClass, typename TResult, typename... Ts>
+static std::shared_ptr<IDelegate> make_shared(const TClass* callee, TResult(TClass::* method)(Ts...) const, DelegateArgs<Ts...>&& params = DelegateArgs<Ts...>(std::nullptr_t{})) {
+  return make_shared_const_method_delegate<TClass, TResult, Ts...>(callee, method, std::move(params));
+}
+
+template <typename TClass, typename TResult, typename... Ts>
+static std::shared_ptr<IDelegate> make_shared(std::shared_ptr<TClass> callee, TResult(TClass::* method)(Ts...) const, Ts... args) {
+  return make_shared_const_method_delegate<TClass, TResult, Ts...>(callee, method, std::forward<Ts>(args)...);
+}
+
+template <typename TClass, typename TResult, typename... Ts>
+static std::shared_ptr<IDelegate> make_shared(std::shared_ptr<TClass> callee, TResult(TClass::* method)(Ts...) const, DelegateArgs<Ts...>&& params = DelegateArgs<Ts...>(std::nullptr_t{})) {
+  return make_shared_const_method_delegate<TClass, TResult, Ts...>(callee, method, std::move(params));
+}
+
+
 
 template <typename TResult=void, typename... Ts, typename F>
 static std::shared_ptr<IDelegate> make_shared(F && lambda, Ts&&... args) {

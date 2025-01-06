@@ -289,6 +289,44 @@ class ConstMethodDelegate
   MethodType mem_fn_;
 };
 
+/// \brief    Class const method deferred call template for void result type
+template <class TClass, typename... Ts>
+class ConstMethodDelegate<TClass, void, Ts...>
+  : public detail::DelegateBase<void, Ts...> {
+public:
+  ConstMethodDelegate(const TClass* owner, void(TClass::* member)(Ts...) const, Ts&&... args)
+    :detail::DelegateBase<void, Ts...>(std::forward<Ts>(args)...)
+    , callee_(owner)
+    , mem_fn_(member) {}
+
+  ConstMethodDelegate(const TClass* owner, void(TClass::* member)(Ts...) const, DelegateArgs<Ts...>&& params)
+    :detail::DelegateBase<void, Ts...>(std::move(params))
+    , callee_(owner)
+    , mem_fn_(member) {}
+
+  ~ConstMethodDelegate() = default;
+
+private:
+  bool perform_call(DelegateResult<void>&, DelegateArgs<Ts...>& args) override {
+    return perform_call(args, std::make_index_sequence<sizeof...(Ts)>{});
+  }
+
+  template <std::size_t... Is>
+  bool perform_call(DelegateArgs<Ts...>& args, std::index_sequence<Is...>) {
+    auto callee = callee_;
+    if (!callee)
+      return false;
+
+    (callee->*(mem_fn_))(std::get<Is>(args.get_tuple())...);
+    return true;
+  }
+
+  typedef void(TClass::* MethodType)(Ts...) const;
+  const TClass* callee_;
+  MethodType mem_fn_;
+};
+
+
 /// \brief    Class method deferred call for 'void' return type
 template <class TClass, typename... Ts>
 class MethodDelegate<TClass, void, Ts...>
