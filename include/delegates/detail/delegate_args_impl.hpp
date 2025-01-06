@@ -16,21 +16,28 @@
 namespace delegates {
 namespace detail {
 
+template<typename ...Ts, class Tuple>
+auto reference_to_tuple(Tuple& t) {
+  return std::apply([&](auto&... args) {
+    return std::tuple<Ts...>(args...);
+    }, t);
+}
+
 /// \brief    Delegate arguments implementation
 template<std::size_t N, typename... Args>
 class DelegateArgsImpl
   : public virtual delegates::IDelegateArgs {
  public:
-  DelegateArgsImpl(DelegateArgsImpl&& params) 
+  DelegateArgsImpl(DelegateArgsImpl&& params) noexcept
     : default_args_(std::move(params.default_args_))
     , args_(std::move(params.args_))
-    , deleters_(std::move(params.deleters_)) {}
+    , deleters_(std::move(params.deleters_))  {}
 
   DelegateArgsImpl(Args&&... args): args_(std::forward<Args>(args)...) { setup_deleters(); }
 
   DelegateArgsImpl(std::nullptr_t)
     : default_args_(std::tuple<typename std::decay<Args>::type...> {})  // default args used for empty initialization when some of arguments are references
-    , args_(default_args_) {
+    , args_(default_args_ /*reference_to_tuple<Args...>(default_args_)*/) {
     setup_deleters();
   }
 

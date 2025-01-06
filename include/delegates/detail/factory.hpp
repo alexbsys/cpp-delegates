@@ -140,10 +140,10 @@ static IDelegate* make_lambda_delegate(F && lambda, DelegateArgs<Ts...> && param
   return new LambdaDelegate<TResult, F, Ts...>(std::move(lambda), std::move(params) /* std::forward<Ts>(args)...*/);
 }
 
-/*template <typename TResult = void, typename... Ts, typename F>
-static IDelegate* make_lambda_delegate(F && lambda, std::nullptr_t = std::nullptr_t{}) {
-  return new LambdaDelegate<TResult, F, Ts...>(std::move(lambda), std::nullptr_t{});
-}*/
+//template <typename TResult = void, typename... Ts, typename F>
+//static IDelegate* make_lambda_delegate(F && lambda, Ts... args) {
+//  return new LambdaDelegate<TResult, F, Ts...>(std::move(lambda), std::move(DelegateArgs<Ts...>(args...)));
+//}
 
 //template <typename TResult = void, typename F>
 //static IDelegate* make_lambda_delegate(F&& lambda) {
@@ -354,7 +354,8 @@ static IDelegate* make(std::shared_ptr<TClass> callee, TResult (TClass::*method)
 
 template <typename TResult=void, typename... Ts, typename F>
 static IDelegate* make(F && lambda, Ts&&... args) {
-  return make_lambda_delegate<TResult, Ts...>(std::move(lambda), std::forward<Ts>(args)...);
+  return make_lambda_delegate<TResult, Ts...>(std::move(lambda), 
+    DelegateArgs<Ts...>(std::forward<Ts>(args)...));
 }
 
 template <typename TResult=void, typename... Ts, typename F>
@@ -448,12 +449,12 @@ static std::unique_ptr<IDelegate> make_unique(F && lambda, DelegateArgs<Ts...> &
 }
 
 template <typename TResult=void, typename... Ts>
-static std::unique_ptr<ISignal> make_unique_multidelegate(Ts&&... args) {
+static std::unique_ptr<ISignal> make_unique_signal(Ts&&... args) {
   return std::make_unique<detail::SignalBase<TResult,Ts...> >(std::forward<Ts>(args)...);
 }
 
 template <typename TResult=void, typename... Ts>
-static std::unique_ptr<ISignal> make_unique_multidelegate(DelegateArgs<Ts...> && params = DelegateArgs<Ts...>(std::nullptr_t{})) {
+static std::unique_ptr<ISignal> make_unique_signal(DelegateArgs<Ts...> && params = DelegateArgs<Ts...>(std::nullptr_t{})) {
   return std::make_unique<detail::SignalBase<TResult,Ts...> >(std::move(params));
 }
 

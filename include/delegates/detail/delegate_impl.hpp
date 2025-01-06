@@ -50,7 +50,7 @@ class SignalBase : public virtual ISignal {
 public:
   SignalBase(Args&&... args) : params_(std::forward<Args>(args)...) {}
   SignalBase(DelegateArgs<Args...>&& params) : params_(std::move(params)) {}
-  SignalBase(std::nullptr_t) : params_(std::nullptr_t{}) {}
+//  SignalBase(std::nullptr_t) : params_(std::nullptr_t{}) {}
   ~SignalBase() override { remove_all(); }
 
   virtual bool call() override {

@@ -11,6 +11,171 @@
 
 using namespace delegates;
 
+TEST_F(DeferredCallTests, DelegateArgs_SimpleValues) {
+  // with default arguments
+  DelegateArgs<int, float> args1(std::nullptr_t{});
+  ASSERT_EQ(args1.size(), 2);
+
+  ASSERT_EQ(args1.get<int>(0), 0);
+  ASSERT_EQ(args1.get<float>(1), 0.0f);
+
+  ASSERT_TRUE(args1.set<int>(0, 123));
+  ASSERT_TRUE(args1.set<float>(1, 1.23f));
+
+  ASSERT_EQ(args1.get<int>(0), 123);
+  ASSERT_EQ(args1.get<float>(1), 1.23f);
+
+  ASSERT_EQ(args1.hash_code(0), typeid(int).hash_code());
+  ASSERT_EQ(args1.hash_code(1), typeid(float).hash_code());
+
+  args1.clear();
+
+  ASSERT_EQ(args1.get<int>(0), 0);
+  ASSERT_EQ(args1.get<float>(1), 0.0f);
+
+  // with initial arguments values
+  DelegateArgs<int, float> args2(5, 6.12f);
+  ASSERT_EQ(args2.size(), 2);
+
+  ASSERT_EQ(args2.get<int>(0), 5);
+  ASSERT_EQ(args2.get<float>(1), 6.12f);
+
+  ASSERT_TRUE(args2.set<int>(0, 123));
+  ASSERT_TRUE(args2.set<float>(1, 1.23f));
+
+  ASSERT_EQ(args2.get<int>(0), 123);
+  ASSERT_EQ(args2.get<float>(1), 1.23f);
+
+  args2.clear();
+
+  ASSERT_EQ(args1.get<int>(0), 0);
+  ASSERT_EQ(args1.get<float>(1), 0.0f);
+
+  // with no arguments
+  DelegateArgs<> args3;
+  ASSERT_EQ(args3.size(), 0);
+
+  // with no arguments
+  DelegateArgs<> args4(std::nullptr_t{});
+  ASSERT_EQ(args4.size(), 0);
+}
+
+TEST_F(DeferredCallTests, DelegateArgs_StringsVectors) {
+  DelegateArgs<std::string, std::vector<int> > args1(std::nullptr_t{});
+  ASSERT_EQ(args1.size(), 2);
+
+  ASSERT_TRUE(args1.get<std::string>(0) == std::string());
+  ASSERT_TRUE(args1.get<std::vector<int> >(1).size() == 0);
+
+  ASSERT_TRUE(args1.set<std::string>(0, "hello"));
+  ASSERT_TRUE(args1.set<std::vector<int> >(1, std::vector<int> { 1, 2 }));
+
+  ASSERT_TRUE(args1.get<std::string>(0) == "hello");
+  std::vector<int> ta = args1.get<std::vector<int> >(1);
+  ASSERT_EQ(ta.size(), 2);
+  ASSERT_EQ(ta[0], 1);
+  ASSERT_EQ(ta[1], 2);
+
+  ASSERT_EQ(args1.hash_code(0), typeid(std::string).hash_code());
+  ASSERT_EQ(args1.hash_code(1), typeid(std::vector<int>).hash_code());
+
+  args1.clear();
+
+  ASSERT_TRUE(args1.get<std::string>(0) == std::string());
+  ASSERT_TRUE(args1.get<std::vector<int> >(1).size() == 0);
+}
+
+TEST_F(DeferredCallTests, DelegateArgs_StringRef) {
+  DelegateArgs<const std::string&> args1(std::nullptr_t{});
+  ASSERT_EQ(args1.size(), 1);
+
+  ASSERT_TRUE(args1.get<std::string>(0) == std::string());
+
+  ASSERT_TRUE(args1.set<std::string>(0, "hello"));
+  ASSERT_TRUE(args1.get<std::string>(0) == "hello");
+}
+
+TEST_F(DeferredCallTests, SignalArgs_StringConstRef) {
+  Signal<bool, const std::string&> sig(DelegateArgs<const std::string&>(std::nullptr_t{}));
+  ASSERT_EQ(sig.args()->size(), 1);
+
+  ASSERT_TRUE(sig.args()->get<std::string>(0) == std::string());
+
+  ASSERT_TRUE(sig.args()->set<std::string>(0, "hello"));
+  ASSERT_TRUE(sig.args()->get<std::string>(0) == "hello");
+
+  sig += factory::make_shared<bool, const std::string&>([](const std::string& s)->bool { return s == "hello"; });
+  sig();
+
+  ASSERT_TRUE(sig.result()->has_value());
+  ASSERT_TRUE(sig.result()->get<bool>());
+}
+#if 0
+TEST_F(DeferredCallTests, SignalArgs_StringRef) {
+  Signal<bool, std::string&> sig(DelegateArgs<std::string&>(std::nullptr_t{}));
+  ASSERT_EQ(sig.args()->size(), 1);
+
+  ASSERT_TRUE(sig.args()->get<std::string&>(0) == std::string());
+
+  std::string s = "hello";
+  ASSERT_TRUE(sig.args()->set<std::string>(0, s));
+  ASSERT_TRUE(sig.args()->get<std::string>(0) == s);
+
+  sig += factory::make_shared<bool, std::string&>([](std::string& s)->bool { 
+    bool result = s == "hello"; // true
+    s = "world";  // changes will be lost!!!
+    return result;
+  });
+  sig();
+
+  ASSERT_TRUE(s == "hello");
+  ASSERT_TRUE(sig.result()->has_value());
+  ASSERT_TRUE(sig.result()->get<bool>());
+}
+#endif //0
+/*
+TEST_F(DeferredCallTests, DelegateArgs_StringRef23) {
+
+
+  auto delegate = delegates::factory::make_unique<bool, std::string&>([](std::string& s)->bool {
+    bool result = s == "hello"; // true
+    s = "world";  // changes will be lost!!!
+    return result;
+  });
+
+  ASSERT_EQ(delegate->args()->size(), 1);
+
+  auto ss = delegate->args()->get<std::string&>(0);
+  ASSERT_TRUE(delegate->args()->get<std::string&>(0) == std::string());
+
+  std::string s = "hello";
+  ASSERT_TRUE(delegate->args()->set<std::string&>(0, s));
+  ASSERT_TRUE(delegate->args()->get<std::string>(0) == s);
+
+  delegate->call();
+
+  ASSERT_TRUE(s == "hello");
+  ASSERT_TRUE(delegate->result()->has_value());
+  ASSERT_TRUE(delegate->result()->get<bool>());
+}
+*/
+
+TEST_F(DeferredCallTests, SignalArgs_StringPtr) {
+  Signal<void, std::string*> sig(DelegateArgs<std::string*>(std::nullptr_t{}));
+  ASSERT_EQ(sig.args()->size(), 1);
+
+  ASSERT_TRUE(sig.args()->get<std::string*>(0) == nullptr);
+
+  std::string s = "hello";
+  ASSERT_TRUE(sig.args()->set<std::string*>(0, &s));
+  ASSERT_TRUE(sig.args()->get<std::string*>(0) == &s);
+
+  sig += factory::make_shared<void, std::string*>([](std::string* s) { *s = "world"; });
+  sig();
+
+  ASSERT_TRUE(s == "world");
+}
+
 void test_fn(int* a, int* b, int* c) {
   ASSERT_TRUE(a != nullptr);
   ASSERT_TRUE(b != nullptr);
@@ -99,6 +264,15 @@ TEST_F(DeferredCallTests, TestLambda) {
   v = call2->result()->get<int>();
   ASSERT_EQ(v, 9);
   delete call2;
+
+  auto call5 = delegates::factory::make<int, int, int>([](int a, int b) -> int { return a + b; },
+    4, 5);
+  call5->call();
+  v = call5->result()->get<int>();
+  ASSERT_EQ(v, 9);
+  delete call5;
+
+
 
   a = 1; b=2;
   auto call3 = delegates::factory::make_lambda_delegate<int>([&a,&b]() -> int { return a+b; });
@@ -632,7 +806,7 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_RefParamsWithRefResult) {
   TestResult result { 42 };
 
   static const std::string& kTestValue = "hello";
-  auto sig = delegates::factory::make_unique_multidelegate<const TestResult&, int, const std::string&>(std::nullptr_t{});
+  auto sig = delegates::factory::make_unique_signal<const TestResult&, int, const std::string&>(std::nullptr_t{});
 
   int r1i = 0;
   bool r1s = false;
@@ -695,7 +869,7 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_RefParamsWithRefResult) {
 
 TEST_F(DeferredCallTests, TestDelegates_SignalCalls_Remove) {
   static const std::string& kTestValue = "hello";
-  auto sig = delegates::factory::make_unique_multidelegate<void, int, const std::string&>(std::nullptr_t{});
+  auto sig = delegates::factory::make_unique_signal<void, int, const std::string&>(std::nullptr_t{});
 
   int r1i = 0;
   bool r1s = false;

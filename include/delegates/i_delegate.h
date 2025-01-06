@@ -124,15 +124,34 @@ struct IDelegateArgs {
   template<typename T>
   T get(size_t idx) {
     using value_type = typename std::decay<T>::type;
+    static value_type default_val;
 
     if (typeid(T).hash_code() != hash_code(idx))
       throw std::exception("Wrong type provided");
 
     void* p = get_ptr(idx);
     if (p == nullptr)
-      return std::move( value_type() );
+      return default_val;
 
-    T* pv = reinterpret_cast<T*>(p);
+    value_type* pv = reinterpret_cast<value_type*>(p);
+    //T* pv = reinterpret_cast<T*>(p);
+    return *pv;
+  }
+
+  template<typename T>
+  T& get_ref(size_t idx) {
+    using value_type = typename std::decay<T>::type;
+    static value_type default_val;
+
+    if (typeid(T).hash_code() != hash_code(idx))
+      throw std::exception("Wrong type provided");
+
+    void* p = get_ptr(idx);
+    if (p == nullptr)
+      return default_val;
+
+    value_type* pv = reinterpret_cast<value_type*>(p);
+    //T* pv = reinterpret_cast<T*>(p);
     return *pv;
   }
 

@@ -8,7 +8,7 @@ using namespace delegates;
 
 void SignalSimpleExample() {
   std::string kDefaultString = "default";
-  Signal<void, int, std::string> s/*(123, kDefaultString)*/;
+  Signal<void, int, const std::string&> s/*(123, kDefaultString)*/;
 
   std::string checkstr = s.args()->get<std::string>(1);
 
@@ -28,12 +28,12 @@ void SignalSimpleExample() {
 
 
 void SignalToSignalExample() {
-	Signal<void, int, std::string> s2;
+	Signal<void, int, const std::string&> s2;
 
   std::cout << "== Signal to signal example ==" << std::endl;
 
   {
-    Signal<void, int, std::string> s1;
+    Signal<void, int, const std::string&> s1;
     s1 += delegates::factory::make_shared<void, int, const std::string&>([](int a, const std::string& s) { std::cout << "[1] signal called from 1, a=" << a << ", s=" << s << std::endl; });
 
     auto delegate2 = delegates::factory::make<void, int, std::string>([](int a, std::string s) { std::cout << "[1] signal called from 2, a=" << a << ", s=" << s << std::endl; });
