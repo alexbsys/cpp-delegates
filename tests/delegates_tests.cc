@@ -259,7 +259,7 @@ TEST_F(DeferredCallTests, TestLambda) {
   delete call;
 
   auto call2 = delegates::factory::make_lambda_delegate<int,int,int>([](int a, int b) -> int { return a+b; }, 
-    delegates::DelegateArgs(4, 5));
+    delegates::DelegateArgs<int,int>(4, 5));
   call2->call();
   v = call2->result()->get<int>();
   ASSERT_EQ(v, 9);
