@@ -350,7 +350,7 @@ private:
 
   template <std::size_t... Is>
   bool perform_call(DelegateResult<TResult>& result, DelegateArgs<TArgs...>& args, std::index_sequence<Is...>) {
-    result.set<TResult>(func_(std::get<Is>(args.get_tuple())...));
+    result.set<typename TResult>(func_(std::get<Is>(args.get_tuple())...));
     return true;
   }
 
@@ -398,7 +398,7 @@ public:
 
 private:
   bool perform_call(DelegateResult<TResult>& result, DelegateArgs<TArgs...>& args) override {
-    result.set<TResult>(perform_function_call(args.get_tuple(), std::make_index_sequence<sizeof...(TArgs)>{}));
+    result.set<typename TResult>(perform_function_call(args.get_tuple(), std::make_index_sequence<sizeof...(TArgs)>{}));
     return true;
   }
 

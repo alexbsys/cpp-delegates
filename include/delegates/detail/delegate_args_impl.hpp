@@ -17,13 +17,6 @@ DELEGATES_BASE_NAMESPACE_BEGIN
 namespace delegates {
 namespace detail {
 
-template<typename ...TArgs, class Tuple>
-auto reference_to_tuple(Tuple& t) {
-  return std::apply([&](auto&... args) {
-    return std::tuple<TArgs...>(args...);
-    }, t);
-}
-
 /// \brief    Delegate arguments implementation. N is arguments count, TArgs - arguments types list
 template<std::size_t N, typename... TArgs>
 class DelegateArgsImpl
@@ -110,7 +103,7 @@ template<>
 class DelegateArgsImpl<0>
   : public virtual delegates::IDelegateArgs {
   DelegateArgsImpl(const DelegateArgsImpl&) {}
-  DelegateArgsImpl& operator=(const DelegateArgsImpl&) {}
+  DelegateArgsImpl& operator=(const DelegateArgsImpl&) { return *this;  }
 
 public:
   DelegateArgsImpl(DelegateArgsImpl&& params) noexcept {}
@@ -150,7 +143,7 @@ private:
 
 // Create delegate arguments with values without rvalue refs
 template<typename ...TArgs>
-static typename DelegateArgs<TArgs...> DelegateArgsValues(TArgs... args) {
+constexpr typename DelegateArgs<TArgs...> DelegateArgsValues(TArgs... args) {
   return DelegateArgs<TArgs...>(std::forward<TArgs>(args)...);
 }
 
