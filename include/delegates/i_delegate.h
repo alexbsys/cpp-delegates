@@ -151,7 +151,6 @@ struct IDelegateArgs {
       return default_val;
 
     value_type* pv = reinterpret_cast<value_type*>(p);
-    //T* pv = reinterpret_cast<T*>(p);
     return *pv;
   }
 

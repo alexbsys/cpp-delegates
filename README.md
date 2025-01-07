@@ -10,12 +10,17 @@ C++ delegates and signals library
 * For class method calls pointer to class can be raw pointer, `shared_ptr` or `weak_ptr`
 * Thread-safe
 
-## Difference between delegate and signal
+## Delegates and signals
 
 **Delegate** means single call activity with stored arguments inside it, and saved result. Caller may not know parameters or result type, but he can call delegate via `IDelegate::call()`.
 
 **Signal** is "delegates aggregator": it implements `IDelegate` interface, but can hold more than one delegate inside, but with same arguments and return type.
 When *Signal* is called, all delegates inside it will be called with same parameters.
+
+## How to build
+
+* In your own project: just copy directory `include/delegates` to your project includes dir and just include in C++: c++`#include <delegates/delegates.hpp>`
+* Build examples and tests: run `cmake -B build` in project directory
 
 ## Minimal usage example
 
@@ -200,7 +205,7 @@ signal->add(factory::make<void,int>([](int){}));
 signal->call();  // call
 ```
 
-## Set ang get arguments
+## Set and get arguments
 
 Arguments are accessible through `IDelegateArgs` interface:
 ```c++
@@ -208,15 +213,18 @@ std::shared_ptr<IDelegate> delegate;
 ...
 delegate->args(); // returns pointer to IDelegateArgs
 
-std::shared_ptr<ISignal> signal;
+Signal<void,int> signal1;
+std::shared_ptr<ISignal> signal2;
 ...
-signal->args(); // returns pointer to IDelegateArgs
+signal1.args();
+signal2->args(); // returns pointer to IDelegateArgs
 ```
 
 High-level interface:
 * Get arguments count
 * Set argument value by index when he knows argument type
 * Get argument value by index when he knows argument type
+* Clear argument value
 
 ```c++
 size_t args_count = delegate->args()->size(); // get delegate or signal arguments count
@@ -229,6 +237,9 @@ delegate->args()->set<int>(2, 4); // set argument #2 to int(4)
 // For pointers or complex type, user may provide deleter for argument value.
 // Deleter will be called when argument value is released (delegate deleted or argument value updated)
 delegate->args()->set<int*>(0, new int[10], [](int* p) { delete [] p; });
+
+delegate->args()->clear(1); // clear argument #1 value 
+delegate->args()->clear(); // clear all arguments values and set to default
 ```
 
 Low-level interface:
@@ -249,3 +260,32 @@ size_t n_hash = typeid(int).hash_code();
 delegate->args()->set_ptr(2, pn, n_hash);
 
 ```
+
+## Get call result
+
+Delegate or signal call result is accessible through `IDelegateResult` interface:
+```c++
+std::shared_ptr<IDelegate> delegate;
+...
+delegate->result(); // returns pointer to IDelegateResult
+
+Signal<void> signal1;
+std::shared_ptr<ISignal> signal2;
+...
+signal1.result();
+signal2->result(); // returns pointer to IDelegateResult
+```
+
+How to use:
+```c++
+size_t result_type_hash = delegate->result()->hash_code(); // equals to typeid(TResult).hash_code()
+
+if (delegate->result()->has_value()) { // has_value returns true when result type is not void and result was set
+  int r = delegate->result()->get<int>(); // get result value when its type is int
+  std::string r = delegate->result()->get<std::string>(); // get std::string result  
+}
+
+delegate->result()->clear(); // Clear result and free memory used by value
+```
+
+For signals, result will be saved only from last delegate call.
