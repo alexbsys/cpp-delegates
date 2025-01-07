@@ -403,7 +403,7 @@ private:
   }
 
   template <std::size_t... Is>
-  TResult perform_function_call(typename std::tuple<TArgs...>& tup, std::index_sequence<Is...>) {
+  TResult perform_function_call(typename std::tuple<TArgs&...>& tup, std::index_sequence<Is...>) {
     return func_(std::get<Is>(tup)...);
   }
 
@@ -430,7 +430,7 @@ private:
   }
 
   template <std::size_t... Is>
-  void perform_function_call(typename std::tuple<TArgs...>& tup, std::index_sequence<Is...>) {
+  void perform_function_call(typename std::tuple<TArgs&...>& tup, std::index_sequence<Is...>) {
     func_(std::get<Is>(tup)...);
   }
 

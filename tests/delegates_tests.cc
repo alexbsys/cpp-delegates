@@ -412,7 +412,7 @@ TEST_F(DeferredCallTests, TestClassWeakPtrMethodCallVoidResult) {
   ASSERT_TRUE(r);
   ASSERT_TRUE(test_class_ptr->calls_ == 1);
   ASSERT_FALSE(delegate->result()->has_value());
-  ASSERT_EQ(ret, 42);
+  ASSERT_EQ(42, delegate->args()->get<int>(1));
 
   test_class_ptr.reset();
 
