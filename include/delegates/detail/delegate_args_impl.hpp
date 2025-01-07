@@ -53,14 +53,14 @@ public:
     if (ptr && deleters_[idx])
       deleters_[idx](ptr);
 
-    tuple_runtime::runtime_tuple_set_value_ptr(args_, idx, nullptr, 0);
+    tuple_runtime::runtime_tuple_set_value_ptr(args_, default_args_, idx, nullptr, 0);
     deleters_[idx] = [](void* ptr) {};
   }
 
   bool set_ptr(size_t idx, void* pv, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void* ptr) {}) override  {
     using tuple_type=typename std::remove_reference<std::tuple<TArgs...> >::type;
     clear(idx);
-    if (tuple_runtime::runtime_tuple_set_value_ptr(args_, idx, pv, type_hash)) {
+    if (tuple_runtime::runtime_tuple_set_value_ptr(args_, default_args_, idx, pv, type_hash)) {
       deleters_[idx] = deleter_ptr;
       return true;
     }
