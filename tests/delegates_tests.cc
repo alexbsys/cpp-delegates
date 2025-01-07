@@ -7,7 +7,7 @@
 #include <mutex>
 #include <condition_variable>
 
-#define DELEGATE_TESTS_WITH_EXCEPTIONS_ENABLED 0
+#define DELEGATE_TESTS_WITH_EXCEPTIONS_ENABLED 1
 
 using namespace delegates;
 
@@ -468,7 +468,7 @@ TEST_F(DeferredCallTests, TestLambda_EmptyArgs_SetVectorArg) {
   std::vector<int> b = { 2, 3 };
 
   auto call2 = delegates::factory::make_lambda_delegate<int, int, std::vector<int> >(
-    [](int a, const std::vector<int>& b) -> int { return a + b[0] + b[1]; }, std::nullptr_t{});
+    [](int a, const std::vector<int>& b) -> int { return a + b[0] + b[1]; });
 
   call2->args()->set(0, a);
   call2->args()->set(1, b);
@@ -514,7 +514,7 @@ TEST_F(DeferredCallTests, TestLambda_CallArgDeleter) {
   int deleted_a = 0;
   int deleted_b = 0;
 
-  auto call = delegates::factory::make_lambda_delegate<void, Arg*>([](Arg* a) { a->called_++; }, std::nullptr_t{});
+  auto call = delegates::factory::make_lambda_delegate<void, Arg*>([](Arg* a) { a->called_++; });
 
   Arg* pa = new Arg();
   pa->deleted_ = &deleted_a;
@@ -546,7 +546,7 @@ TEST_F(DeferredCallTests, TestLambda_SetWrongArgType) {
   std::vector<char> b = { 2, 3 };
 
   auto call2 = delegates::factory::make_lambda_delegate<int, int, std::vector<int> >(
-    [](int a, const std::vector<int>& b) -> int { return a + b[0] + b[1]; }, std::nullptr_t{});
+    [](int a, const std::vector<int>& b) -> int { return a + b[0] + b[1]; });
 
   bool r = call2->args()->set(0, a);
   ASSERT_FALSE(r);
@@ -662,7 +662,7 @@ TEST_F(DeferredCallTests, TestLambda_CallFromDifferentThread) {
 }
 
 TEST_F(DeferredCallTests, TestDelegates_MultiCalls_VoidResult) {
-  auto delegates = delegates::factory::make_shared_signal<void, int, std::string>(std::nullptr_t{});
+  auto delegates = delegates::factory::make_shared_signal<void, int, std::string>();
 
   int r1i = 0;
   std::string r1s;
@@ -673,9 +673,9 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_VoidResult) {
   int r3i = 0;
   std::string r3s;
 
-  auto call1 = delegates::factory::make_lambda_delegate<void, int, std::string>([&r1i, &r1s](int i, std::string s) { r1i = i; r1s = s; }, std::nullptr_t{});
-  auto call2 = delegates::factory::make_lambda_delegate<void, int, std::string>([&r2i, &r2s](int i, std::string s) { r2i = i; r2s = s; }, std::nullptr_t{});
-  std::shared_ptr<IDelegate> call3 = delegates::factory::make_shared<void, int, std::string>([&r3i, &r3s](int i, std::string s) { r3i = i; r3s = s; }, std::nullptr_t{});
+  auto call1 = delegates::factory::make_lambda_delegate<void, int, std::string>([&r1i, &r1s](int i, std::string s) { r1i = i; r1s = s; });
+  auto call2 = delegates::factory::make_lambda_delegate<void, int, std::string>([&r2i, &r2s](int i, std::string s) { r2i = i; r2s = s; });
+  std::shared_ptr<IDelegate> call3 = delegates::factory::make_shared<void, int, std::string>([&r3i, &r3s](int i, std::string s) { r3i = i; r3s = s; });
 
   ASSERT_EQ(delegates->args()->size(), 2);
   ASSERT_EQ(call1->args()->size(), 2);
@@ -806,7 +806,7 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_RefParamsWithRefResult) {
   TestResult result { 42 };
 
   static const std::string& kTestValue = "hello";
-  auto sig = delegates::factory::make_unique_signal<const TestResult&, int, const std::string&>(std::nullptr_t{});
+  auto sig = delegates::factory::make_unique_signal<const TestResult&, int, const std::string&>();
 
   int r1i = 0;
   bool r1s = false;
@@ -819,16 +819,14 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_RefParamsWithRefResult) {
       r1i = i;
       r1s = s == kTestValue;
       return result;
-    },
-    std::nullptr_t{});
+    });
 
   std::shared_ptr<IDelegate> call2 = delegates::factory::make_shared<const TestResult&, int, const std::string&>(
     [&r2i, &r2s, &result](int i, std::string s)->const TestResult& {
       r2i = i;
       r2s = s == kTestValue;
       return result;
-    },
-    std::nullptr_t{});
+    });
 
   ASSERT_EQ(sig->args()->size(), 2);
   ASSERT_EQ(call1->args()->size(), 2);
@@ -869,7 +867,7 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_RefParamsWithRefResult) {
 
 TEST_F(DeferredCallTests, TestDelegates_SignalCalls_Remove) {
   static const std::string& kTestValue = "hello";
-  auto sig = delegates::factory::make_unique_signal<void, int, const std::string&>(std::nullptr_t{});
+  auto sig = delegates::factory::make_unique_signal<void, int, const std::string&>();
 
   int r1i = 0;
   bool r1s = false;
@@ -881,15 +879,13 @@ TEST_F(DeferredCallTests, TestDelegates_SignalCalls_Remove) {
     [&r1i, &r1s](int i, const std::string& s) {
       r1i = i;
       r1s = s == kTestValue;
-    },
-    std::nullptr_t{});
+    });
 
   std::shared_ptr<IDelegate> call2 = delegates::factory::make_shared<void, int, const std::string&>(
     [&r2i, &r2s](int i, std::string s) {
       r2i = i;
       r2s = s == kTestValue;
-    },
-    std::nullptr_t{});
+    });
 
   // add both calls without tags
   sig->add(call1.get());

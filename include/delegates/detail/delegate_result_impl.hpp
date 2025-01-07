@@ -12,7 +12,6 @@
 #include <mutex>
 #include <cstddef>
 
-
 namespace delegates {
 namespace detail {
 
