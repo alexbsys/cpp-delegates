@@ -41,7 +41,7 @@ namespace detail {
 
   template <typename Tuple>
   auto ref_tuple(Tuple& tup)
-    -> decltype(ref_tuple_impl( Gens<std::tuple_size<Tuple>::value>::Type (), tup))
+    -> decltype(ref_tuple_impl(typename Gens<std::tuple_size<Tuple>::value>::Type (), tup))
   {
     return ref_tuple_impl(typename Gens<std::tuple_size<Tuple>::value>::Type(), tup);
   }
