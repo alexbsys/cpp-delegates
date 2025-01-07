@@ -110,55 +110,6 @@ TEST_F(DeferredCallTests, SignalArgs_StringConstRef) {
   ASSERT_TRUE(sig.result()->has_value());
   ASSERT_TRUE(sig.result()->get<bool>());
 }
-#if 0
-TEST_F(DeferredCallTests, SignalArgs_StringRef) {
-  Signal<bool, std::string&> sig(DelegateArgs<std::string&>(std::nullptr_t{}));
-  ASSERT_EQ(sig.args()->size(), 1);
-
-  ASSERT_TRUE(sig.args()->get<std::string&>(0) == std::string());
-
-  std::string s = "hello";
-  ASSERT_TRUE(sig.args()->set<std::string>(0, s));
-  ASSERT_TRUE(sig.args()->get<std::string>(0) == s);
-
-  sig += factory::make_shared<bool, std::string&>([](std::string& s)->bool { 
-    bool result = s == "hello"; // true
-    s = "world";  // changes will be lost!!!
-    return result;
-  });
-  sig();
-
-  ASSERT_TRUE(s == "hello");
-  ASSERT_TRUE(sig.result()->has_value());
-  ASSERT_TRUE(sig.result()->get<bool>());
-}
-#endif //0
-/*
-TEST_F(DeferredCallTests, DelegateArgs_StringRef23) {
-
-
-  auto delegate = delegates::factory::make_unique<bool, std::string&>([](std::string& s)->bool {
-    bool result = s == "hello"; // true
-    s = "world";  // changes will be lost!!!
-    return result;
-  });
-
-  ASSERT_EQ(delegate->args()->size(), 1);
-
-  auto ss = delegate->args()->get<std::string&>(0);
-  ASSERT_TRUE(delegate->args()->get<std::string&>(0) == std::string());
-
-  std::string s = "hello";
-  ASSERT_TRUE(delegate->args()->set<std::string&>(0, s));
-  ASSERT_TRUE(delegate->args()->get<std::string>(0) == s);
-
-  delegate->call();
-
-  ASSERT_TRUE(s == "hello");
-  ASSERT_TRUE(delegate->result()->has_value());
-  ASSERT_TRUE(delegate->result()->get<bool>());
-}
-*/
 
 TEST_F(DeferredCallTests, SignalArgs_StringPtr) {
   Signal<void, std::string*> sig(DelegateArgs<std::string*>(std::nullptr_t{}));
@@ -571,7 +522,7 @@ TEST_F(DeferredCallTests, TestLambda_SetWrongArgIdx) {
   int b = 2;
 
   auto call2 = delegates::factory::make_lambda_delegate<int, char, int>(
-    [](char a, int b) -> int { return a + b; }, std::nullptr_t{});
+    [](char a, int b) -> int { return a + b; });
 
   try {
     call2->args()->set<char>(2, a);
