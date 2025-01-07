@@ -29,7 +29,7 @@ constexpr bool tuple_set_value_ptr_fn(Tuple& t, const void* pv, size_t type_hash
   using elem_type_noconst = typename std::decay< typename std::tuple_element<Idx,Tuple>::type >::type;
   using elem_type_noref = typename std::remove_reference< typename std::tuple_element<Idx,Tuple>::type >::type;
 
-  static elem_type_noref default_val{}; // default value will be set on clear
+//  static constexpr elem_type_noref default_val = elem_type_noref{}; // default value will be set on clear
 
   if (type_hash && pv
       && typeid(elem_orig_type).hash_code() != type_hash
@@ -40,7 +40,7 @@ constexpr bool tuple_set_value_ptr_fn(Tuple& t, const void* pv, size_t type_hash
 
   const elem_type_noconst* p_input = reinterpret_cast<const elem_type_noconst*>(pv);
   elem_type_noconst& v = const_cast<elem_type_noconst&>( std::get<Idx>(t) );
-  v = p_input ? *p_input : default_val;
+  v = p_input ? *p_input : elem_type_noref{};
   return true;
 };
 

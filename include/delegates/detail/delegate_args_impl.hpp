@@ -143,7 +143,7 @@ private:
 
 // Create delegate arguments with values without rvalue refs
 template<typename ...TArgs>
-constexpr typename DelegateArgs<TArgs...> DelegateArgsValues(TArgs... args) {
+constexpr DelegateArgs<TArgs...> DelegateArgsValues(TArgs... args) {
   return DelegateArgs<TArgs...>(std::forward<TArgs>(args)...);
 }
 

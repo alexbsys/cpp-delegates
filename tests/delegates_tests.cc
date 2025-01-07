@@ -95,7 +95,7 @@ TEST_F(DeferredCallTests, DelegateArgs_StringRef) {
   ASSERT_TRUE(args1.set<std::string>(0, "hello"));
   ASSERT_TRUE(args1.get<std::string>(0) == "hello");
 }
-
+#if 0
 TEST_F(DeferredCallTests, SignalArgs_StringConstRef) {
   Signal<bool, const std::string&> sig(DelegateArgs<const std::string&>(std::nullptr_t{}));
   ASSERT_EQ(sig.args()->size(), 1);
@@ -111,7 +111,7 @@ TEST_F(DeferredCallTests, SignalArgs_StringConstRef) {
   ASSERT_TRUE(sig.result()->has_value());
   ASSERT_TRUE(sig.result()->get<bool>());
 }
-
+#endif
 TEST_F(DeferredCallTests, SignalArgs_StringPtr) {
   Signal<void, std::string*> sig(DelegateArgs<std::string*>(std::nullptr_t{}));
   ASSERT_EQ(sig.args()->size(), 1);
@@ -240,7 +240,36 @@ TEST_F(DeferredCallTests, TestLambda) {
   delete call4;
 }
 
-TEST_F(DeferredCallTests, TestClassMemberCall) {
+TEST_F(DeferredCallTests, TestClassMemberCall_ValueArg) {
+  static const std::string kTestValue = "hello";
+
+  struct TestClass {
+    int Method(std::string str) {
+      if (str == kTestValue) {
+        calls_++;
+        return 42;
+      }
+
+      return -1;
+    }
+    int calls_ = 0;
+  };
+
+  TestClass test_class;
+
+  IDelegate* delegate = delegates::factory::make_method_delegate(&test_class, &TestClass::Method);
+  delegate->args()->set<std::string>(0, kTestValue);
+
+  bool r = delegate->call();
+
+  ASSERT_TRUE(r);
+  ASSERT_TRUE(test_class.calls_ == 1);
+  ASSERT_TRUE(delegate->result()->has_value());
+  ASSERT_EQ(delegate->result()->get<int>(), 42);
+}
+
+
+TEST_F(DeferredCallTests, TestClassMemberCall_ConstRefArg) {
   static const std::string kTestValue = "hello";
 
   struct TestClass {

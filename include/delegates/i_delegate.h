@@ -131,7 +131,7 @@ struct IDelegateArgs {
     static value_type default_val;
 
     if (typeid(T).hash_code() != hash_code(idx))
-      throw std::exception("Wrong type provided");
+      throw std::runtime_error("Wrong type provided");
 
     void* p = get_ptr(idx);
     return p ? *reinterpret_cast<value_type*>(p) : default_val;
@@ -143,7 +143,7 @@ struct IDelegateArgs {
     static value_type default_val;
 
     if (typeid(T).hash_code() != hash_code(idx))
-      throw std::exception("Wrong type provided");
+      throw std::runtime_error("Wrong type provided");
 
     void* p = get_ptr(idx);
     return p ? *reinterpret_cast<value_type*>(p) : default_val;
