@@ -13,11 +13,9 @@ namespace delegates {
 
 template<typename TResult, typename ...TArgs>
 struct Signal : public virtual ISignal {
-//  Signal() 
-//    : delegate_(delegates::factory::template make_unique_signal<TResult, TArgs...>(DelegateArgs<TArgs...>(std::nullptr_t{}))) {}
-//  Signal(TArgs... args) : delegate_(delegates::factory::template make_unique_signal<TResult, TArgs...>(std::forward<TArgs>(args)...)) {}
   Signal(TArgs... args) : delegate_(delegates::factory::template make_unique_signal<TResult, TArgs...>(std::forward<TArgs>(args)...)) {}
-  Signal(DelegateArgs<TArgs...>&& params = DelegateArgs<TArgs...>(std::nullptr_t{})) : delegate_(delegates::factory::template make_unique_signal<TResult, TArgs...>(std::move(params))) {}
+  Signal(DelegateArgs<TArgs...>&& params = DelegateArgs<TArgs...>(std::nullptr_t{})) 
+    : delegate_(delegates::factory::template make_unique_signal<TResult, TArgs...>(std::move(params))) {}
 
   ~Signal() override {
     std::list<Signal*> ref_by_signals;
@@ -110,6 +108,9 @@ private:
   std::list<Signal*> ref_signals_;
   std::list<Signal*> ref_by_signals_;
   mutable std::mutex mutex_;
+  
+  Signal(const Signal&) {}
+  Signal& operator=(const Signal&) { return *this; }
 };
 
 }//namespace delegates
