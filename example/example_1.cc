@@ -1,3 +1,0 @@
-
-#include <delegates/delegates.hpp>
-
