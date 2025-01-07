@@ -8,9 +8,12 @@
 #include <tuple>
 #include <memory>
 #include <vector>
+#include <limits>
 #include <list>
 #include <mutex>
 #include <cstddef>
+
+DELEGATES_BASE_NAMESPACE_BEGIN
 
 namespace delegates {
 namespace detail {
@@ -18,7 +21,7 @@ namespace detail {
 /// \brief    Result for all copyable types but void
 template <typename TValue>
 class DelegateResult 
-  : public virtual delegates::IDelegateResult {
+  : public virtual IDelegateResult {
  public:
   DelegateResult()
       : default_value_(), value_(default_value_), has_value_(false) {
@@ -35,7 +38,7 @@ class DelegateResult
     using value_noconst = typename std::decay<TValue>::type;
 
     clear();
-    if (!value_ptr) // ptr==null means just clear
+    if (!value_ptr) // ptr==null means just clear stored value
       return true;
 
     if (hash_code() != type_hash)
@@ -54,7 +57,7 @@ class DelegateResult
     if (!has_value_)
       return false;
 
-    if (value_size != sizeof(value_))
+    if (value_size != std::numeric_limits<size_t>::max() && value_size != sizeof(value_))
       return false;
 
     value_noconst* v = reinterpret_cast<value_noconst*>(value_ptr);
@@ -84,7 +87,7 @@ class DelegateResult
   int size_bytes() const override { return sizeof(value_); }
 
  private:
-  // copying is prohibited because DelegateResult owns value (deleter may be called)
+  // copying is prohibited because DelegateResult owns stored value (deleter may be called for it)
   DelegateResult(const DelegateResult&) {}
   DelegateResult& operator= (const DelegateResult& other) { return *this; }
    
@@ -133,5 +136,7 @@ struct MoveDelegateResult<void> {
 
 }//namespace detail
 }//namespace delegates
+
+DELEGATES_BASE_NAMESPACE_END
 
 #endif //DELEGATE_RESULT_IMPL_HEADER

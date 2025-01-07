@@ -9,7 +9,8 @@
 
 #define DELEGATE_TESTS_WITH_EXCEPTIONS_ENABLED 1
 
-using namespace delegates;
+USING_DELEGATES_BASE_NAMESPACE
+using namespace DELEGATES_BASE_NAMESPACE::delegates;
 
 TEST_F(DeferredCallTests, DelegateArgs_SimpleValues) {
   // with default arguments

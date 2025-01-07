@@ -12,6 +12,7 @@
 #include <mutex>
 #include <cstddef>
 
+DELEGATES_BASE_NAMESPACE_BEGIN
 
 namespace delegates {
 namespace detail {
@@ -23,11 +24,15 @@ auto reference_to_tuple(Tuple& t) {
     }, t);
 }
 
-/// \brief    Delegate arguments implementation
+/// \brief    Delegate arguments implementation. N is arguments count, TArgs - arguments types list
 template<std::size_t N, typename... TArgs>
 class DelegateArgsImpl
   : public virtual delegates::IDelegateArgs {
- public:
+  // disable copying
+  DelegateArgsImpl(const DelegateArgsImpl&) {}
+  DelegateArgsImpl& operator=(const DelegateArgsImpl&) {}
+  
+public:
   DelegateArgsImpl(DelegateArgsImpl&& params) noexcept
     : default_args_(std::move(params.default_args_))
     , args_(std::move(params.args_))
@@ -35,9 +40,10 @@ class DelegateArgsImpl
 
   DelegateArgsImpl(TArgs&&... args): args_(std::forward<TArgs>(args)...) { setup_deleters(); }
 
-  DelegateArgsImpl(std::nullptr_t)
+  // Constructor with std::nullptr_t{} parameter means that arguments are initialized with default values
+  DelegateArgsImpl(std::nullptr_t) noexcept
     : default_args_(std::tuple<typename std::decay<TArgs>::type...> {})  // default args used for empty initialization when some of arguments are references
-    , args_(default_args_ /*reference_to_tuple<TArgs...>(default_args_)*/) {
+    , args_(default_args_) {
     setup_deleters();
   }
 
@@ -99,10 +105,15 @@ class DelegateArgsImpl
   std::vector<std::function<void(void*)> > deleters_;
 };
 
+/// \brief    Delegates arguments specialization for empty list
 template<>
 class DelegateArgsImpl<0>
   : public virtual delegates::IDelegateArgs {
+  DelegateArgsImpl(const DelegateArgsImpl&) {}
+  DelegateArgsImpl& operator=(const DelegateArgsImpl&) {}
+
 public:
+  DelegateArgsImpl(DelegateArgsImpl&& params) noexcept {}
   DelegateArgsImpl() {}
   DelegateArgsImpl(std::nullptr_t) {}
   ~DelegateArgsImpl() override = default;
@@ -119,7 +130,7 @@ public:
 
   std::tuple<>& get_tuple() { return args_; }
   const std::tuple<>& get_tuple() const { return args_; }
-
+  
 private:
   std::tuple<> args_;
 };
@@ -137,11 +148,14 @@ private:
   DelegateArgs& operator= (const DelegateArgs& other) { return *this; }
 };
 
+// Create delegate arguments with values without rvalue refs
 template<typename ...TArgs>
 static typename DelegateArgs<TArgs...> DelegateArgsValues(TArgs... args) {
   return DelegateArgs<TArgs...>(std::forward<TArgs>(args)...);
 }
 
 }//namespace delegates
+
+DELEGATES_BASE_NAMESPACE_END
 
 #endif //DELEGATE_ARGS_IMPL_HEADER

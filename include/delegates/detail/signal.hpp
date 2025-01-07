@@ -2,12 +2,14 @@
 #ifndef SIGNAL_HEADER
 #define SIGNAL_HEADER
 
+#include "../i_delegate.h"
 #include "delegate_impl.hpp"
 #include "factory.hpp"
-#include "../i_delegate.h"
 
 #include <list>
 #include <mutex>
+
+DELEGATES_BASE_NAMESPACE_BEGIN
 
 namespace delegates {
 
@@ -114,5 +116,7 @@ private:
 };
 
 }//namespace delegates
+
+DELEGATES_BASE_NAMESPACE_END
 
 #endif //SIGNAL_HEADER

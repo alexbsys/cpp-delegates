@@ -2,10 +2,14 @@
 #ifndef DELEGATES_TUPLE_RUNTIME_HEADER
 #define DELEGATES_TUPLE_RUNTIME_HEADER
 
+#include "../delegates_conf.h"
+
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <stdexcept>
+
+DELEGATES_BASE_NAMESPACE_BEGIN
 
 // std::tuple runtime tools
 namespace delegates {
@@ -109,5 +113,7 @@ constexpr void* runtime_tuple_get_value_ptr(Tuple&& t,size_t index){
 
 }//namespace tuple_runtime
 }//namespace delegates
+
+DELEGATES_BASE_NAMESPACE_END
 
 #endif //DELEGATES_TUPLE_RUNTIME_HEADER

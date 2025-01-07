@@ -15,6 +15,8 @@
 #include "delegate_result_impl.hpp"
 #include "delegate_args_impl.hpp"
 
+DELEGATES_BASE_NAMESPACE_BEGIN
+
 namespace delegates {
 
 namespace detail {
@@ -530,5 +532,7 @@ class WeakMethodDelegate<TClass,void,TArgs...>
 };
 
 }//namespace delegates
+
+DELEGATES_BASE_NAMESPACE_END
 
 #endif  // DELEGATES_DELEGATE_IMPL_HEADER

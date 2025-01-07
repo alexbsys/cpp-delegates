@@ -33,6 +33,7 @@ set (HEADER_FILES
 
 set (DELEGATES_LIB_HEADER_FILES
   ../include/delegates/delegates.hpp
+  ../include/delegates/delegates_conf.h
   ../include/delegates/i_delegate.h
   ../include/delegates/detail/signal.hpp
   ../include/delegates/detail/delegate_args_impl.hpp

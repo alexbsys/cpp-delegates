@@ -4,7 +4,8 @@
 #include <iostream>
 #include <string>
 
-using namespace delegates;
+USING_DELEGATES_BASE_NAMESPACE
+using namespace DELEGATES_BASE_NAMESPACE::delegates;
 
 int DelegateFn(std::string s) {
   std::cout << s << std::endl;

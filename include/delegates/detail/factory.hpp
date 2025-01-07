@@ -5,6 +5,8 @@
 #include "delegate_impl.hpp"
 #include <memory>
 
+DELEGATES_BASE_NAMESPACE_BEGIN
+
 namespace delegates {
 namespace factory {
 
@@ -425,5 +427,7 @@ static std::unique_ptr<ISignal> make_unique_signal(DelegateArgs<TArgs...> && par
 
 }// namespace factory
 }//namespace delegates
+
+DELEGATES_BASE_NAMESPACE_END
 
 #endif //DELEGATES_FACTORY_HEADER

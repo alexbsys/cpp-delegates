@@ -1,12 +1,16 @@
 #ifndef DELEGATES_CPP_DELEGATE_INTERFACE_HEADER
 #define DELEGATES_CPP_DELEGATE_INTERFACE_HEADER
 
+#include "delegates_conf.h"
+
 #include <cassert>
 #include <cstdlib>
 #include <string>
 #include <memory>
 #include <functional>
 #include <stdexcept>
+
+DELEGATES_BASE_NAMESPACE_BEGIN
 
 namespace delegates {
 
@@ -130,12 +134,7 @@ struct IDelegateArgs {
       throw std::exception("Wrong type provided");
 
     void* p = get_ptr(idx);
-    if (p == nullptr)
-      return default_val;
-
-    value_type* pv = reinterpret_cast<value_type*>(p);
-    //T* pv = reinterpret_cast<T*>(p);
-    return *pv;
+    return p ? *reinterpret_cast<value_type*>(p) : default_val;
   }
 
   template<typename T>
@@ -147,11 +146,7 @@ struct IDelegateArgs {
       throw std::exception("Wrong type provided");
 
     void* p = get_ptr(idx);
-    if (p == nullptr)
-      return default_val;
-
-    value_type* pv = reinterpret_cast<value_type*>(p);
-    return *pv;
+    return p ? *reinterpret_cast<value_type*>(p) : default_val;
   }
 
   /// \brief   get copy of argument value by argument index
@@ -167,8 +162,7 @@ struct IDelegateArgs {
     if (p == nullptr)
       return false;
 
-    T* pv = reinterpret_cast<T*>(p);
-    out_value = *pv;
+    out_value = *reinterpret_cast<T*>(p);
     return true;
   }
 
@@ -242,5 +236,7 @@ struct ISignal
 };
 
 }//namespace delegates
+
+DELEGATES_BASE_NAMESPACE_END
 
 #endif  // DELEGATES_CPP_DELEGATE_INTERFACE_HEADER
