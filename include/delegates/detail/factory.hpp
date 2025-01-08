@@ -363,7 +363,7 @@ static std::shared_ptr<IDelegate> make_shared(std::shared_ptr<TClass> callee, TR
   return make_shared_const_method_delegate<TClass, TResult, TArgs...>(callee, method, std::move(params));
 }
 
-template <typename TResult=void, typename... TArgs, typename F>
+template <typename TResult=void, typename... TArgs, typename F, bool TCheck=true, typename = typename std::enable_if<sizeof...(TArgs) && TCheck>::type>
 static std::shared_ptr<IDelegate> make_shared(F && lambda, TArgs&&... args) {
   return make_shared_lambda_delegate<TResult, TArgs...>(std::move(lambda), std::forward<TArgs>(args)...);
 }

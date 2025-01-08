@@ -30,7 +30,7 @@ struct DelegateBase
 
   bool call() override { return perform_call(result_, params_); }
   
-  bool call(IDelegateArgs* args) { 
+  bool call(IDelegateArgs* args) override { 
     if (!args || args->size() != params_.size())  return false;
     for (size_t i = 0; i < params_.size(); i++) {
       if (args->hash_code(i) != params_.hash_code(i))

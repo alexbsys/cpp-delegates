@@ -35,7 +35,7 @@ struct Signal : public virtual ISignal {
     return delegate_->call();
   }
 
-  bool call(IDelegateArgs* args) {
+  bool call(IDelegateArgs* args) override {
     return delegate_->call(args);
   }
 

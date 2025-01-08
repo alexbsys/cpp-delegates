@@ -179,10 +179,11 @@ private:
 
     fd_count = 0;
     DIR *dir = opendir(buf);
-    while ((dp = readdir(dir)) != NULL) {
+    while (dir && (dp = readdir(dir)) != NULL) {
          fd_count++;
     }
-    closedir(dir);
+    if (dir)
+      closedir(dir);
     return static_cast<size_t>(fd_count);
 #endif //_WIN32
   }
