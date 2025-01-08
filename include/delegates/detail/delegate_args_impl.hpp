@@ -140,7 +140,7 @@ template<typename ...TArgs>
 struct DelegateArgs 
   : public detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...> {
 
-  template<typename = typename std::enable_if<sizeof...(TArgs)>::type>
+  template<bool TCheck=true, typename = typename std::enable_if<sizeof...(TArgs) && TCheck>::type>
   explicit DelegateArgs(TArgs&&... args) : detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...>(std::forward<TArgs>(args)...) {}
 
   DelegateArgs(DelegateArgs&& other) noexcept : detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...>(std::move(other)) {}
