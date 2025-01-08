@@ -32,7 +32,7 @@ public:
     , ref_args_(tuple_runtime::ref_tuple(values_args_))
     , deleters_(std::move(params.deleters_))  {}
 
-  DelegateArgsImpl(TArgs&&... args)
+  explicit DelegateArgsImpl(TArgs&&... args)
     : values_args_(std::forward<TArgs>(args)...)
     , def_args_(std::tuple<typename std::decay<TArgs>::type...> {})
     , ref_args_(tuple_runtime::ref_tuple(values_args_))
@@ -139,9 +139,12 @@ private:
 template<typename ...TArgs>
 struct DelegateArgs 
   : public detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...> {
+
+  template<typename = typename std::enable_if<sizeof...(TArgs)>::type>
+  explicit DelegateArgs(TArgs&&... args) : detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...>(std::forward<TArgs>(args)...) {}
+
   DelegateArgs(DelegateArgs&& other) noexcept : detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...>(std::move(other)) {}
-  DelegateArgs(TArgs&&... args) : detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...>(std::forward<TArgs>(args)...) {}
-  DelegateArgs(std::nullptr_t) : detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...>(std::nullptr_t{}) {}
+  DelegateArgs(std::nullptr_t = std::nullptr_t{}) : detail::DelegateArgsImpl<sizeof...(TArgs), TArgs...>(std::nullptr_t{}) {}
   ~DelegateArgs() = default;
 private:
   DelegateArgs(const DelegateArgs&) {}

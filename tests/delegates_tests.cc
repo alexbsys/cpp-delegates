@@ -14,7 +14,7 @@ using namespace DELEGATES_BASE_NAMESPACE::delegates;
 
 TEST_F(DeferredCallTests, DelegateArgs_SimpleValues) {
   // with default arguments
-  DelegateArgs<int, float> args1(std::nullptr_t{});
+  DelegateArgs<int, float> args1;
   ASSERT_EQ(args1.size(), 2);
 
   ASSERT_EQ(args1.get<int>(0), 0);
@@ -57,12 +57,12 @@ TEST_F(DeferredCallTests, DelegateArgs_SimpleValues) {
   ASSERT_EQ(args3.size(), 0);
 
   // with no arguments
-  DelegateArgs<> args4(std::nullptr_t{});
+  DelegateArgs<> args4;
   ASSERT_EQ(args4.size(), 0);
 }
 
 TEST_F(DeferredCallTests, DelegateArgs_StringsVectors) {
-  DelegateArgs<std::string, std::vector<int> > args1(std::nullptr_t{});
+  DelegateArgs<std::string, std::vector<int> > args1;
   ASSERT_EQ(args1.size(), 2);
 
   ASSERT_TRUE(args1.get<std::string>(0) == std::string());
@@ -87,7 +87,7 @@ TEST_F(DeferredCallTests, DelegateArgs_StringsVectors) {
 }
 
 TEST_F(DeferredCallTests, DelegateArgs_StringRef) {
-  DelegateArgs<const std::string&> args1(std::nullptr_t{});
+  DelegateArgs<const std::string&> args1;
   ASSERT_EQ(args1.size(), 1);
 
   ASSERT_TRUE(args1.get<std::string>(0) == std::string());
@@ -97,7 +97,7 @@ TEST_F(DeferredCallTests, DelegateArgs_StringRef) {
 }
 
 TEST_F(DeferredCallTests, SignalArgs_StringConstRef) {
-  Signal<bool, const std::string&> sig(DelegateArgs<const std::string&>(std::nullptr_t{}));
+  Signal<bool, const std::string&> sig;
   ASSERT_EQ(sig.args()->size(), 1);
 
   ASSERT_TRUE(sig.args()->get<std::string>(0) == std::string());
@@ -113,7 +113,7 @@ TEST_F(DeferredCallTests, SignalArgs_StringConstRef) {
 }
 
 TEST_F(DeferredCallTests, SignalArgs_StringRef) {
-  Signal<bool, std::string&> sig(DelegateArgs<std::string&>(std::nullptr_t{}));
+  Signal<bool, std::string&> sig;
   ASSERT_EQ(sig.args()->size(), 1);
 
   ASSERT_TRUE(sig.args()->get<std::string>(0) == std::string());
@@ -131,7 +131,7 @@ TEST_F(DeferredCallTests, SignalArgs_StringRef) {
 
 
 TEST_F(DeferredCallTests, SignalArgs_StringPtr) {
-  Signal<void, std::string*> sig(DelegateArgs<std::string*>(std::nullptr_t{}));
+  Signal<void, std::string*> sig;
   ASSERT_EQ(sig.args()->size(), 1);
 
   ASSERT_TRUE(sig.args()->get<std::string*>(0) == nullptr);

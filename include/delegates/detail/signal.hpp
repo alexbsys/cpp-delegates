@@ -16,7 +16,7 @@ namespace delegates {
 template<typename TResult, typename ...TArgs>
 struct Signal : public virtual ISignal {
   Signal(TArgs... args) : delegate_(delegates::factory::template make_unique_signal<TResult, TArgs...>(std::forward<TArgs>(args)...)) {}
-  Signal(DelegateArgs<TArgs...>&& params = DelegateArgs<TArgs...>(std::nullptr_t{})) 
+  Signal(DelegateArgs<TArgs...>&& params = DelegateArgs<TArgs...>()) 
     : delegate_(delegates::factory::template make_unique_signal<TResult, TArgs...>(std::move(params))) {}
 
   ~Signal() override {
