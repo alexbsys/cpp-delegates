@@ -23,7 +23,7 @@ class DelegateArgsImpl
   : public delegates::IDelegateArgs {
   // disable copying
   DelegateArgsImpl(const DelegateArgsImpl&) {}
-  DelegateArgsImpl& operator=(const DelegateArgsImpl&) {}
+  DelegateArgsImpl& operator=(const DelegateArgsImpl&) { return *this;  }
   
 public:
   DelegateArgsImpl(DelegateArgsImpl&& params) noexcept
