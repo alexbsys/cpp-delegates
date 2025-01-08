@@ -112,6 +112,24 @@ TEST_F(DeferredCallTests, SignalArgs_StringConstRef) {
   ASSERT_TRUE(sig.result()->get<bool>());
 }
 
+TEST_F(DeferredCallTests, SignalArgs_StringRef) {
+  Signal<bool, std::string&> sig(DelegateArgs<std::string&>(std::nullptr_t{}));
+  ASSERT_EQ(sig.args()->size(), 1);
+
+  ASSERT_TRUE(sig.args()->get<std::string>(0) == std::string());
+
+  ASSERT_TRUE(sig.args()->set<std::string>(0, "hello"));
+  ASSERT_TRUE(sig.args()->get<std::string>(0) == "hello");
+
+  sig += factory::make_shared<bool, std::string&>([](std::string& s)->bool { s = "world"; return false; });
+  sig();
+
+  ASSERT_TRUE(sig.result()->has_value());
+  ASSERT_FALSE(sig.result()->get<bool>());
+  ASSERT_TRUE(sig.args()->get<std::string>(0) == "world");
+}
+
+
 TEST_F(DeferredCallTests, SignalArgs_StringPtr) {
   Signal<void, std::string*> sig(DelegateArgs<std::string*>(std::nullptr_t{}));
   ASSERT_EQ(sig.args()->size(), 1);

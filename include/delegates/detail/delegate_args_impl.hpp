@@ -50,7 +50,7 @@ namespace detail {
 /// \brief    Delegate arguments implementation. N is arguments count, TArgs - arguments types list
 template<std::size_t N, typename... TArgs>
 class DelegateArgsImpl
-  : public virtual delegates::IDelegateArgs {
+  : public delegates::IDelegateArgs {
   // disable copying
   DelegateArgsImpl(const DelegateArgsImpl&) {}
   DelegateArgsImpl& operator=(const DelegateArgsImpl&) {}
@@ -121,6 +121,10 @@ public:
   std::tuple<TArgs&...>& get_tuple() { return args_; }
   const std::tuple<TArgs&...>& get_tuple() const { return args_; }
 
+  std::tuple<typename std::decay<TArgs>::type...>& get_value_tuple() { return default_args_; }
+  void assign_ref_tuple(std::tuple<TArgs&...>& tup) { args_ = tup; }
+  void revert_ref_tuple() { args_ = ref_tuple(default_args_); }
+
  private:
   void setup_deleters() {
     using tuple_type=typename std::remove_reference<std::tuple<TArgs...> >::type;
@@ -138,7 +142,7 @@ public:
 /// \brief    Delegates arguments specialization for empty list
 template<>
 class DelegateArgsImpl<0>
-  : public virtual delegates::IDelegateArgs {
+  : public delegates::IDelegateArgs {
   DelegateArgsImpl(const DelegateArgsImpl&) {}
   DelegateArgsImpl& operator=(const DelegateArgsImpl&) { return *this;  }
 

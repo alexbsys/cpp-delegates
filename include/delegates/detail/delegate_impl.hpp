@@ -29,6 +29,7 @@ struct DelegateBase
   ~DelegateBase() = default;
 
   bool call() override { return perform_call(result_, params_); }
+  bool call(IDelegateArgs* args) { return perform_call(result_, *static_cast<DelegateArgs<TArgs...>*>(args)); }
   IDelegateResult* result() override { return static_cast<IDelegateResult*>(&result_); }
   IDelegateArgs* args() override { return static_cast<IDelegateArgs*>(&params_); }
 
@@ -55,10 +56,22 @@ public:
     bool result = true;
 
     for(const auto& c : calls_)
-      result &= perform_call(c.call_);
+      result &= perform_call(c.call_, nullptr);
 
     for(const auto& c : shared_calls_)
-      result &= perform_call(c.call_.get());
+      result &= perform_call(c.call_.get(), nullptr);
+
+    return result;
+  }
+
+  virtual bool call(IDelegateArgs* args) override {
+    bool result = true;
+
+    for(const auto& c : calls_)
+      result &= perform_call(c.call_, args);
+
+    for(const auto& c : shared_calls_)
+      result &= perform_call(c.call_.get(), args);
 
     return result;
   }
@@ -138,38 +151,40 @@ public:
   // Copy arguments pointers without deleters. 
   // They are accessible only during source arguments list is alive. 
   // Destination container must be released before source
-  static bool args_weak_copy(IDelegateArgs* from, IDelegateArgs* to) {
-    if (!from || !to || from->size() != to->size())  return false;
+  static bool args_weak_copy(DelegateArgs<TArgs...>& from, DelegateArgs<TArgs...>& to) {
+//    if (!from || !to || from->size() != to->size())  return false;
 
-    for (size_t i=0; i<from->size(); i++) {
-      if (from->hash_code(i) != to->hash_code(i))
-        return false;
-    }
+//    for (size_t i=0; i<from->size(); i++) {
+//      if (from->hash_code(i) != to->hash_code(i))
+//        return false;
+//    }
 
-    for (size_t i=0; i<from->size(); i++) {
+/*    for (size_t i=0; i<from->size(); i++) {
       void* pv = from->get_ptr(i);
       if (!to->set_ptr(i, pv, from->hash_code(i)))
         return false;
     }
-
+*/
+//to.get_tuple()
+to.assign_ref_tuple( ref_tuple(from.get_value_tuple()) );
     return true;
   }
 
   // Execute call: check types, create arguments weak copy, pass them to call, execute call, release arguments, copy result
-  bool perform_call(IDelegate* call) {
+  bool perform_call(IDelegate* call, IDelegateArgs* args) {
     using result_noref = typename std::decay<TResult>::type;
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (call->result()->hash_code() != typeid(TResult).hash_code())
       return false;
 
-    if (!args_weak_copy(&params_, call->args()))
-      return false;
+//    if (!args_weak_copy(params_, *static_cast<DelegateArgs<TArgs...>*>(call->args())))
+//      return false;
 
     bool ret = false;
 
     try {
-      ret = call->call();
+      ret = call->call(args ? args : &params_);
     } catch (...) {
       call->args()->clear(); // clear arguments weak copy
       throw;

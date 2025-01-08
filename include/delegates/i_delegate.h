@@ -196,6 +196,8 @@ struct IDelegate {
   /// \brief    perform delegate call with stored parameters and save result into buffer
   virtual bool call() = 0;
 
+  virtual bool call(IDelegateArgs* args) = 0;
+
   /// \brief    get delegate arguments accessor
   virtual IDelegateArgs* args() = 0;
 
