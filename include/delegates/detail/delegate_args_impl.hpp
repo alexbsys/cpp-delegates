@@ -17,36 +17,6 @@ DELEGATES_BASE_NAMESPACE_BEGIN
 namespace delegates {
 namespace detail {
 
-  template <int...>
-  struct Seq {};
-
-  template <int n, int... s>
-  struct Gens : Gens<n - 1, n - 1, s...> {};
-
-  template <int... s>
-  struct Gens<0, s...> {
-    typedef Seq<s...> Type;
-  };
-
-  template <int... s, typename Tuple>
-  auto ref_tuple_impl(Seq<s...> seq, Tuple& tup)
-    -> std::tuple<
-    std::reference_wrapper<
-    typename std::tuple_element<s, Tuple>::type
-    >...
-    >
-  {
-    return std::make_tuple(std::ref(std::get<s>(tup))...);
-  }
-
-  template <typename Tuple>
-  auto ref_tuple(Tuple& tup)
-    -> decltype(ref_tuple_impl(typename Gens<std::tuple_size<Tuple>::value>::Type (), tup))
-  {
-    return ref_tuple_impl(typename Gens<std::tuple_size<Tuple>::value>::Type(), tup);
-  }
-
-
 /// \brief    Delegate arguments implementation. N is arguments count, TArgs - arguments types list
 template<std::size_t N, typename... TArgs>
 class DelegateArgsImpl
@@ -57,22 +27,22 @@ class DelegateArgsImpl
   
 public:
   DelegateArgsImpl(DelegateArgsImpl&& params) noexcept
-    : default_args_(std::move(params.default_args_))
+    : values_args_(std::move(params.values_args_))
     , def_args_(std::tuple<typename std::decay<TArgs>::type...> {})
-    , args_(ref_tuple(default_args_) /* std::move(params.args_)*/ )
+    , ref_args_(tuple_runtime::ref_tuple(values_args_))
     , deleters_(std::move(params.deleters_))  {}
 
   DelegateArgsImpl(TArgs&&... args)
-    : default_args_(std::forward<TArgs>(args)...)
+    : values_args_(std::forward<TArgs>(args)...)
     , def_args_(std::tuple<typename std::decay<TArgs>::type...> {})
-    , args_(ref_tuple(default_args_)) 
+    , ref_args_(tuple_runtime::ref_tuple(values_args_))
   { setup_deleters(); }
 
   // Constructor with std::nullptr_t{} parameter means that arguments are initialized with default values
   DelegateArgsImpl(std::nullptr_t) noexcept
-    : default_args_(std::tuple<typename std::decay<TArgs>::type...> {})  // default args used for empty initialization when some of arguments are references
+    : values_args_(std::tuple<typename std::decay<TArgs>::type...> {})  // default args used for empty initialization when some of arguments are references
     , def_args_(std::tuple<typename std::decay<TArgs>::type...> {})
-    , args_( /*default_args_*/ ref_tuple(default_args_)) {
+    , ref_args_(tuple_runtime::ref_tuple(values_args_)) {
     setup_deleters();
   }
 
@@ -89,14 +59,14 @@ public:
     if (ptr && deleters_[idx])
       deleters_[idx](ptr);
 
-    tuple_runtime::runtime_tuple_set_value_ptr(default_args_, def_args_, idx, nullptr, 0);
+    tuple_runtime::runtime_tuple_set_value_ptr(values_args_, def_args_, idx, nullptr, 0);
     deleters_[idx] = [](void* ptr) {};
   }
 
   bool set_ptr(size_t idx, void* pv, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void* ptr) {}) override  {
     using tuple_type=typename std::remove_reference<std::tuple<TArgs...> >::type;
     clear(idx);
-    if (tuple_runtime::runtime_tuple_set_value_ptr(default_args_, def_args_, idx, pv, type_hash)) {
+    if (tuple_runtime::runtime_tuple_set_value_ptr(values_args_, def_args_, idx, pv, type_hash)) {
       deleters_[idx] = deleter_ptr;
       return true;
     }
@@ -110,20 +80,16 @@ public:
 
   size_t hash_code(size_t idx) const override {
     using tuple_type=typename std::remove_reference<std::tuple<TArgs&...> >::type;
-    return tuple_runtime::runtime_tuple_get_element_type_hash(args_, idx);
+    return tuple_runtime::runtime_tuple_get_element_type_hash(ref_args_, idx);
   }
 
   void* get_ptr(size_t idx) const override  {
     using tuple_type=typename std::remove_reference<std::tuple<TArgs&...> >::type;
-    return tuple_runtime::runtime_tuple_get_value_ptr(const_cast<tuple_type&>(args_), idx);
+    return tuple_runtime::runtime_tuple_get_value_ptr(const_cast<tuple_type&>(ref_args_), idx);
   }
 
-  std::tuple<TArgs&...>& get_tuple() { return args_; }
-  const std::tuple<TArgs&...>& get_tuple() const { return args_; }
-
-  std::tuple<typename std::decay<TArgs>::type...>& get_value_tuple() { return default_args_; }
-  void assign_ref_tuple(std::tuple<TArgs&...>& tup) { args_ = tup; }
-  void revert_ref_tuple() { args_ = ref_tuple(default_args_); }
+  std::tuple<TArgs&...>& get_tuple() { return ref_args_; }
+  const std::tuple<TArgs&...>& get_tuple() const { return ref_args_; }
 
  private:
   void setup_deleters() {
@@ -134,8 +100,8 @@ public:
 
   // contains non-reference non-const default arguments tuple which is used for initialization when Empty{} arguments are provided
   std::tuple<typename std::decay<TArgs>::type...> def_args_;
-  std::tuple<typename std::decay<TArgs>::type...> default_args_;
-  std::tuple<TArgs&...> args_;
+  std::tuple<typename std::decay<TArgs>::type...> values_args_;
+  std::tuple<TArgs&...> ref_args_;
   std::vector<std::function<void(void*)> > deleters_;
 };
 
@@ -162,11 +128,11 @@ public:
   size_t hash_code(size_t idx) const override { return 0; }
   void* get_ptr(size_t idx) const override { return nullptr; }
 
-  std::tuple<>& get_tuple() { return args_; }
-  const std::tuple<>& get_tuple() const { return args_; }
+  std::tuple<>& get_tuple() { return ref_args_; }
+  const std::tuple<>& get_tuple() const { return ref_args_; }
   
 private:
-  std::tuple<> args_;
+  std::tuple<> ref_args_;
 };
 }//namespace detail
 
