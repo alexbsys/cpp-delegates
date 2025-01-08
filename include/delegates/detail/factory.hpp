@@ -412,7 +412,7 @@ static std::unique_ptr<IDelegate> make_unique(F && lambda, TArgs&&... args) {
 
 template <typename TResult=void, typename... TArgs, typename F>
 static std::unique_ptr<IDelegate> make_unique(F && lambda, DelegateArgs<TArgs...> && params = DelegateArgs<TArgs...>(std::nullptr_t{})) {
-  return make_unique_lambda_delegate<TResult, TArgs...>(std::move(lambda), std::nullptr_t{});
+  return make_unique_lambda_delegate<TResult, TArgs...>(std::move(lambda), std::move(params));
 }
 
 template <typename TResult=void, typename... TArgs>
