@@ -2,12 +2,13 @@
 
 C++ delegates and signals library
 
-* C++14 standard, no dependencies
-* Dependency-injection interface is supported
-* RTTI is recommended (used for type checking in runtime, library may work without RTTI support)
+* C++14 standard, no dependencies. Simple intuitive integration. No OS-specific code
 * Headers-only. All headers can be concatenated to single file
+* Pass arguments as values, references, const references, pointers, etc
 * Slots can be: static functions, lambdas, `std::function`, class methods (regular and const)
-* For class method calls pointer to class can be raw pointer, `shared_ptr` or `weak_ptr`
+* For class method, pointer to class can be raw pointer, `shared_ptr` or `weak_ptr`
+* Dependency-injection interfaces are supported
+* RTTI type checking (but library may work without RTTI support)
 * Thread-safe
 
 ## Delegates and signals
@@ -20,9 +21,52 @@ When *Signal* is called, all delegates inside it will be called with same parame
 ## How to build
 
 * In your own project: just copy directory `include/delegates` to your project includes dir and just include in C++: c++`#include <delegates/delegates.hpp>`
-* Build examples and tests: run `cmake -B build` in project directory
+* Build examples and tests: run in the project directory
+```bash
+cmake -B build
+cd build
+make -j
+```
+
+## Supported platforms
+Tested compilers:
+
+* Microsoft Visual Studio
+* gcc
+* clang
+
+Tested platforms:
+
+* Windows
+* Linux
+* MacOS
 
 ## Minimal usage example
+
+### Delegate with lambda call
+
+```c++
+#include <delegates/delegates.hpp>
+#include <iostream>
+#include <string>
+#include <memory>
+
+using namespace std;
+using namespace delegates;
+
+void main() {
+  // create delegate with return type 'int' and one argument 'std::string'
+  auto delegate = factory::make_unique<int,string>([](string s)->int {
+    cout << s << endl;
+    return 42;
+    });
+
+  delegate->args()->set<string>(0, "Hello world!"); // Set parameter #0 to string
+  delegate->call();  // Perform call
+  int ret = delegate->result()->get<int>(); // Get call return value
+  cout << ret << endl;
+}
+```
 
 ### Delegate with static function call
 
@@ -43,40 +87,11 @@ int DelegateFn(std::string s) {
 void main() {
   // delegate make_unique < ResultType, arguments... >
   auto delegate = delegates::factory::make_unique<int, std::string>(&DelegateFn);
+  delegate->args()->set<std::string>(0, "Hello world!"); // Set parameter #0 to string
 
-  // Set parameter #0 to string
-  delegate->args()->set<std::string>(0, "Hello world!");
-
-  // Perform call
-  delegate->call();
-
-  // Get call result
-  int ret = delegate->result()->get<int>();
+  delegate->call(); // Perform call
+  int ret = delegate->result()->get<int>(); // Get call return value
   std::cout << ret << std::endl;
-}
-```
-
-### Delegate with lambda call
-
-```c++
-#include <delegates/delegates.hpp>
-#include <iostream>
-#include <string>
-#include <memory>
-
-using namespace std;
-using namespace delegates;
-
-void main() {
-  auto delegate = factory::make_unique<int,string>([](string s)->int {
-    cout << s << endl;
-    return 42;
-    });
-
-  delegate->args()->set<string>(0, "Hello world!");
-  delegate->call();
-  int ret = delegate->result()->get<int>();
-  cout << ret << endl;
 }
 ```
 
@@ -114,15 +129,40 @@ void main() {
 }
 ```
 
+### Delegate with lambda call and reference arguments
+
+```c++
+#include <delegates/delegates.hpp>
+#include <iostream>
+#include <string>
+#include <memory>
+
+using namespace std;
+using namespace delegates;
+
+void main() {
+  auto delegate = factory::make_unique<void,const string&,string&>([](const string& in, std::string& out) {
+    if (in == "hello")
+      out = "world";
+    });
+
+  delegate->args()->set<string>(0, "hello"); // Set parameter #0 to string
+  delegate->call();  // Perform call
+  std::string& out = delegate->args()->get_ref<std::string>(1);
+  cout << out << endl;  // print "world"
+}
+```
+
+
 ## Features
 
 ### Delegates
 
-Certainly, delegate definition, arguments specification, call and result checking can be performed in separated places from different threads, etc.
-Also `IDelegate` is common virtual C++ interface struct without any template parameters: caller is not required to know the details (but can check them if necessary)
+Delegate definition, arguments specification, call and result checking can be performed in separated places from different threads, etc.
+`IDelegate` is common virtual C++ interface struct without any template parameters: caller should not know details about arguments or return type (but can check them if necessary).
 
-Delegates with different types, functions, arguments types and count, can be stored in single list and called without providing any information.
-Delegate argument can be simple or complex type. 
+Delegates with different types, functions, arguments count and types, may be stored in single list and called without providing arguments/return information.
+Delegate arguments may contain simple or complex type, reference, const reference, pointers.
 
 ```c++
 // create delegate with lambda like function   int delegate(const std::string& s)
@@ -131,17 +171,12 @@ IDelegate* delegate = delegates::factory::make<int,const std::string&>([](const 
   return 42;
 });
 
-// set argument 0 value separately from delegate function definition
-delegate->args()->set<std::string>(0, "hello world");
-
-// call delegate separately from arguments specification
-delegate->call();
-
-// get result value
-bool ret = delegate->result()->get<bool>();
+delegate->args()->set<std::string>(0, "hello world"); // set argument 0 value separately from delegate function definition
+delegate->call(); // call delegate separately from arguments specification
+bool ret = delegate->result()->get<bool>(); // get result value
 ```
 
-Raw pointers, shared pointers and unique pointers are provided by factory:
+Delegates can be construct as raw pointers, shared or unique pointers:
 ```c++
 IDelegate* d1 = delegates::factory::make<TResult, TArgs...>(lambda); // call lambda with result type and args
 IDelegate* d2 = delegates::factory::make<TResult, TArgs...>(std::function<TResult(TArgs...)>); // call functional with result type and args
@@ -160,7 +195,7 @@ auto d8 = delegates::factory::make_unique<void, std::string, SomeClass>(lambda, 
 
 ### Signals
 
-Static object declaration C++ syntax can be used (`Signal<void> sig`), or dependency injected pointers (`std::shared_ptr<ISignal> sig = delegates::factory::make_shared_signal<void>(...)`).
+Signals support static object declaration C++ syntax (`Signal<void> sig`), or dependency injected pointers (`std::shared_ptr<ISignal> sig = delegates::factory::make_shared_signal<void>(...)`):
 
 ```c++
 using namespace delegates;
@@ -171,12 +206,12 @@ std::unique_ptr<ISignal> unique_signal = factory::make_unique_signal<void,int>()
 ISignal* raw_signal = factory::make<void,int>();
 ```
 
-Non-const reference types inside signals and delegates are not allowed:
+Value types, pointers, const and non-const reference types inside signals and delegates are allowed:
 
 ```c++
 Signal<void, std::string> signal0;  // OK
 Signal<void, const std::string&> signal1; // OK, string can be passed
-Signal<void, std::string&> signal2; // FAIL, compilation error
+Signal<void, std::string&> signal2; // OK
 
 // If you need return parameters as arguments, please use pointers:
 Signal<void, std::string*> signal3; // OK, delegate can change value through pointer
@@ -220,10 +255,13 @@ signal1.args();
 signal2->args(); // returns pointer to IDelegateArgs
 ```
 
+DelegateArgs<> always owns values, but they are provided to delegates and signals as references.
+
 High-level interface:
 * Get arguments count
-* Set argument value by index when he knows argument type
-* Get argument value by index when he knows argument type
+* Set argument value by index when user knowns argument type
+* Get argument value by index when user knowns argument type
+* Get reference to argument value inside DelegateArgs<> when user knowns agrument type
 * Clear argument value
 
 ```c++
