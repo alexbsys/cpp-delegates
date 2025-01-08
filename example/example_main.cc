@@ -63,7 +63,17 @@ void DelegatesClassMethods() {
   }
 }
 
+void DelegateWithReferenceTypes() {
+  auto delegate = factory::make_unique<void,const string&,string&>([](const string& in, std::string& out) {
+    if (in == "hello")
+      out = "world";
+    });
 
+  delegate->args()->set<string>(0, "hello"); // Set parameter #0 to string
+  delegate->call();  // Perform call
+  std::string& out = delegate->args()->get_ref<std::string>(1);
+  cout << out << endl;  // print "world"
+}
 
 void DelegateUsageExample() {
   // create delegate with lambda like function   int delegate(const std::string& s)
@@ -137,6 +147,7 @@ void SignalToSignalExample() {
 }
 
 int main(int argc, char* argv[]) {
+  DelegateWithReferenceTypes();
   DelegatesClassMethods();
   DelegateWithFunctionHelloWorld();
 	SignalSimpleExample();
