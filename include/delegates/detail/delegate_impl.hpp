@@ -10,6 +10,14 @@
 #include <mutex>
 #include <cstddef>
 
+#if DELEGATES_STRICT
+#include <stdexcept>
+#endif //DELEGATES_STRICT
+
+#if DELEGATES_TRACE
+#include <iostream>
+#endif //DELEGATES_TRACE
+
 #include "../i_delegate.h"
 #include "tuple_runtime.hpp"
 #include "delegate_result_impl.hpp"
@@ -31,10 +39,29 @@ struct DelegateBase
   bool call() override { return perform_call(result_, params_); }
   
   bool call(IDelegateArgs* args) override { 
-    if (!args || args->size() != params_.size())  return false;
+    if (!args || args->size() != params_.size()) {
+#if DELEGATES_TRACE
+      std::cerr << "Null or wrong arguments count provided to call()" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Null or wrong arguments count provided to call()");
+#endif //DELEGATES_STRICT
+
+      return false;
+    }
     for (size_t i = 0; i < params_.size(); i++) {
-      if (args->hash_code(i) != params_.hash_code(i))
+      if (args->hash_code(i) != params_.hash_code(i)) {
+#if DELEGATES_TRACE
+        std::cerr << "Wrong argument type provided to call, argument number " << i << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+        throw std::runtime_error("Wrong argument type provided to call");
+#endif //DELEGATES_STRICT
+
         return false;
+      }
     }
 
     return perform_call(result_, *static_cast<DelegateArgs<TArgs...>*>(args)); 
@@ -106,7 +133,16 @@ public:
     DelegateArgsMode args_mode = kDelegateArgsMode_Auto,
     std::function<void(IDelegate*)> deleter = [](IDelegate*){}) override {
     
-    if (!call) return;
+    if (!call) {
+#if DELEGATES_TRACE
+      std::cerr << "Null delegate provided to remove()" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Null delegate provided to remove()");
+#endif //DELEGATES_STRICT
+      return;
+    }
     
     DelegateType c;
     c.call_ = call;
@@ -119,7 +155,16 @@ public:
   }
 
   virtual void add(std::shared_ptr<IDelegate> call, const std::string& tag = std::string(), DelegateArgsMode args_mode = kDelegateArgsMode_Auto) override {
-    if (!call) return;
+    if (!call) {
+#if DELEGATES_TRACE
+      std::cerr << "Null delegate provided to add()" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Null delegate provided to add()");
+#endif //DELEGATES_STRICT
+      return;
+    }
 
     SharedDelegateType c;
     c.call_ = call;
@@ -148,7 +193,16 @@ public:
 
   virtual void remove(IDelegate* call) override {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!call) return;
+    if (!call) {
+#if DELEGATES_TRACE
+      std::cerr << "Null delegate provided to remove()" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Null delegate provided to remove()");
+#endif //DELEGATES_STRICT
+      return;
+    }
 
     calls_.remove_if([&call](const DelegateType& c) {
       if (c.call_ == call) {
@@ -161,6 +215,17 @@ public:
   }
 
   virtual void remove(std::shared_ptr<IDelegate> call) override {
+    if (!call) {
+#if DELEGATES_TRACE
+      std::cerr << "Null delegate provided to remove()" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Null delegate provided to remove()");
+#endif //DELEGATES_STRICT
+      return;
+    }
+    
     std::lock_guard<std::mutex> lock(mutex_);
     shared_calls_.remove_if([&call](const SharedDelegateType& c) { return c.call_ == call; });
   }
@@ -197,8 +262,18 @@ public:
   bool perform_call(IDelegate* call, IDelegateArgs* args, DelegateArgsMode args_mode) {
     using result_noref = typename std::decay<TResult>::type;
 
-    if (call->result()->hash_code() != typeid(TResult).hash_code() && call->result()->hash_code() != typeid(void).hash_code())
+    if (call->result()->hash_code() != typeid(TResult).hash_code() && call->result()->hash_code() != typeid(void).hash_code()) {
+#if DELEGATES_TRACE
+      std::cerr << "[DELEGATE ERROR] Cannot perform call for delegate because return type is incompatible";
+      std::cerr << "  delegate result type: " << typeid(TResult).name() << ", hash code " << typeid(TResult).hash_code();
+      std::cerr << ", call result hash code " << call->result()->hash_code() << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Cannot perform call for delegate because return type is incompatible");
+#endif // DELEGATES_STRICT
       return false;
+    }
 
     bool ret = false;
 
@@ -223,6 +298,16 @@ public:
         else
           ret = call->call(pargs);
       }
+    }
+
+    if (!ret) {
+#if DELEGATES_TRACE
+      std::cerr << "Call was not performed" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Call was not performed");
+#endif //DELEGATES_STRICT
     }
 
     if (!ret || call->result()->hash_code() == typeid(void).hash_code())
@@ -281,7 +366,17 @@ class MethodDelegate
   template <std::size_t... Is>
   bool perform_call(DelegateResult<TResult>& result, DelegateArgs<TArgs...>& args, std::index_sequence<Is...>) {
     auto callee = callee_;
-    if (!callee) return false;
+    if (!callee) {
+#if DELEGATES_TRACE
+      std::cerr << "Delegate call failed: Class pointer is null" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Delegate call failed: Class pointer is null");
+#endif //DELEGATES_STRICT
+
+      return false;
+    }
 
     result.set((callee->*(method_))(std::get<Is>(args.get_tuple())...));
     return true;
@@ -309,8 +404,17 @@ class ConstMethodDelegate
   template <std::size_t... Is>
   bool perform_call(DelegateResult<TResult>& result, DelegateArgs<TArgs...>& args, std::index_sequence<Is...>) {
     auto callee = callee_;
-    if (!callee)
+    if (!callee) {
+#if DELEGATES_TRACE
+      std::cerr << "Delegate call failed: Class pointer is null" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Delegate call failed: Class pointer is null");
+#endif //DELEGATES_STRICT
+
       return false;
+    }
 
     result.set((callee->*(method_))(std::get<Is>(args.get_tuple())...));
     return true;
@@ -342,8 +446,17 @@ private:
   template <std::size_t... Is>
   bool perform_call(DelegateArgs<TArgs...>& args, std::index_sequence<Is...>) {
     auto callee = callee_;
-    if (!callee)
+    if (!callee) {
+#if DELEGATES_TRACE
+      std::cerr << "Delegate call failed: Class pointer is null" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Delegate call failed: Class pointer is null");
+#endif //DELEGATES_STRICT
+
       return false;
+    }
 
     (callee->*(method_))(std::get<Is>(args.get_tuple())...);
     return true;
@@ -375,7 +488,16 @@ class MethodDelegate<TClass, void, TArgs...>
   template <std::size_t... Is>
   bool perform_call(DelegateArgs<TArgs...>& args, std::index_sequence<Is...>) {
     auto callee = callee_;
-    if (!callee) return false;
+    if (!callee) {
+#if DELEGATES_TRACE
+      std::cerr << "Delegate call failed: Class pointer is null" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Delegate call failed: Class pointer is null");
+#endif //DELEGATES_STRICT
+      return false;
+    }
 
     (callee->*(method_))(std::get<Is>(args.get_tuple())...);
     return true;
@@ -544,8 +666,12 @@ class WeakMethodDelegate
   template <std::size_t... Is>
   bool perform_call(DelegateResult<TResult>& result, std::tuple<TArgs...>& tup, std::index_sequence<Is...>) {
     auto callee = callee_.lock();
-    if (!callee)
+    if (!callee) {
+#if DELEGATES_TRACE
+      std::cerr << "WARNING: Delegate was not called: weak pointer is null" << std::endl;
+#endif //DELEGATES_TRACE
       return false;
+    }
     result.set((callee.get()->*(method_))(std::get<Is>(tup)...));
     return true;
   }
@@ -571,8 +697,13 @@ class WeakMethodDelegate<TClass,void,TArgs...>
   template <std::size_t... Is>
   bool perform_call(std::tuple<TArgs...>& tup, std::index_sequence<Is...>) {
     auto callee = callee_.lock();
-    if (!callee)
+    if (!callee) {
+#if DELEGATES_TRACE
+      std::cerr << "WARNING: Delegate was not called: weak pointer is null" << std::endl;
+#endif //DELEGATES_TRACE
+
       return false;
+    }
     (callee.get()->*(method_))(std::get<Is>(tup)...);
     return true;
   }

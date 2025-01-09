@@ -15,4 +15,10 @@
 #define DELEGATES_BASE_NAMESPACE_END
 #define USING_DELEGATES_BASE_NAMESPACE
 
+// Strict mode is used for debug checks: in this mode signals and delegates throws exceptions on all errors
+#define DELEGATES_STRICT  0
+
+// Trace mode: print message to cerr on errors
+#define DELEGATES_TRACE   1
+
 #endif //DELEGAGES_CONF_HEADER

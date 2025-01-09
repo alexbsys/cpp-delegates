@@ -99,6 +99,17 @@ struct Signal : public virtual ISignal {
     const std::string& tag = std::string(), 
     DelegateArgsMode args_mode = kDelegateArgsMode_Auto,
     std::function<void(IDelegate*)> deleter = [](IDelegate*) {}) override {
+    if (!delegate) {
+#if DELEGATES_TRACE
+      std::cerr << "Signal: cannot add delegate, null provided to add()" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Signal: cannot add delegate, null provided to add()");
+#endif //DELEGATES_STRICT
+      return;
+    }
+
     delegate_->add(delegate, tag, args_mode, deleter);
   }
 
@@ -106,6 +117,17 @@ struct Signal : public virtual ISignal {
     std::shared_ptr<IDelegate> delegate, 
     const std::string& tag = std::string(),
     DelegateArgsMode args_mode = kDelegateArgsMode_Auto) override {
+    if (!delegate) {
+#if DELEGATES_TRACE
+      std::cerr << "Signal: cannot add delegate, null provided to add()" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Signal: cannot add delegate, null provided to add()");
+#endif //DELEGATES_STRICT
+      return;
+    }
+
     delegate_->add(delegate, tag, args_mode);
   }
 
