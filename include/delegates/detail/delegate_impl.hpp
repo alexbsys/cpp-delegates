@@ -61,26 +61,38 @@ public:
   SignalBase(DelegateArgs<TArgs...>&& params) : params_(std::move(params)) {}
   ~SignalBase() override { remove_all(); }
 
+  void get_all(std::vector<IDelegate*>& delegates) const override {
+    delegates.clear();
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (const auto& c : calls_)
+      delegates.push_back(c.call_);
+
+    for (const auto& c : shared_calls_)
+      delegates.push_back(c.call_.get());
+  }
+
   virtual bool call() override {
-    bool result = true;
-
-    for(const auto& c : calls_)
-      result &= perform_call(c.call_, nullptr);
-
-    for(const auto& c : shared_calls_)
-      result &= perform_call(c.call_.get(), nullptr);
-
-    return result;
+    return call(nullptr);
   }
 
   virtual bool call(IDelegateArgs* args) override {
+    std::list<SharedDelegateType> shared_calls;
+    std::list<DelegateType> calls;
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      shared_calls = shared_calls_;
+      calls = calls_;
+    }
+
     bool result = true;
 
-    for(const auto& c : calls_)
-      result &= perform_call(c.call_, args);
+    for(const auto& c : calls)
+      result &= perform_call(c.call_, args, c.args_mode_);
 
-    for(const auto& c : shared_calls_)
-      result &= perform_call(c.call_.get(), args);
+    for(const auto& c : shared_calls)
+      result &= perform_call(c.call_.get(), args, c.args_mode_);
 
     return result;
   }
@@ -91,20 +103,28 @@ public:
   virtual void add(
     IDelegate* call,
     const std::string& tag = std::string(),
+    DelegateArgsMode args_mode = kDelegateArgsMode_Auto,
     std::function<void(IDelegate*)> deleter = [](IDelegate*){}) override {
+    
+    if (!call) return;
+    
     DelegateType c;
     c.call_ = call;
     c.deleter_ = deleter;
     c.tag_ = tag;
+    c.args_mode_ = args_mode;
 
     std::lock_guard<std::mutex> lock(mutex_);
     calls_.push_back(c);
   }
 
-  virtual void add(std::shared_ptr<IDelegate> call, const std::string& tag = std::string()) override {
+  virtual void add(std::shared_ptr<IDelegate> call, const std::string& tag = std::string(), DelegateArgsMode args_mode = kDelegateArgsMode_Auto) override {
+    if (!call) return;
+
     SharedDelegateType c;
     c.call_ = call;
     c.tag_ = tag;
+    c.args_mode_ = args_mode;
 
     std::lock_guard<std::mutex> lock(mutex_);
     shared_calls_.push_back(c);
@@ -157,35 +177,71 @@ public:
   }
 
  private:
-  // Execute call: check types, pass args to call, execute call, move result
-  bool perform_call(IDelegate* call, IDelegateArgs* args) {
-    using result_noref = typename std::decay<TResult>::type;
-    std::lock_guard<std::mutex> lock(mutex_);
+  // check the arguments are correspond between signal and delegate when args_mode == kDelegateArgsMode_UseSignalArgs
+  static bool check_delegate_arguments_correspond_to_signal(IDelegate* call, IDelegateArgs* args) {
+    if (call->args()->size() == 0)
+      return true;
 
-    if (call->result()->hash_code() != typeid(TResult).hash_code())
+    if (args->size() != call->args()->size())
+      return false;
+
+    for (size_t i = 0; i < args->size(); i++) {
+      if (args->hash_code(i) != call->args()->hash_code(i))
+        return false;
+    }
+
+    return true;
+  }
+
+  // Execute call: check types, pass args to call, execute call, move result
+  bool perform_call(IDelegate* call, IDelegateArgs* args, DelegateArgsMode args_mode) {
+    using result_noref = typename std::decay<TResult>::type;
+
+    if (call->result()->hash_code() != typeid(TResult).hash_code() && call->result()->hash_code() != typeid(void).hash_code())
       return false;
 
     bool ret = false;
 
-    try {
-      ret = call->call(args ? args : &params_);
-    } catch (...) {
-      call->args()->clear(); // clear arguments weak copy
-      throw;
+    if (args_mode == kDelegateArgsMode_UseDelegateOwnArgs) {
+      ret = call->call();
+    }
+    else {
+      IDelegateArgs* pargs = args ? args : &params_;
+      bool use_args = check_delegate_arguments_correspond_to_signal(call, pargs);
+
+      if (args_mode == kDelegateArgsMode_Auto) {
+        if (!use_args)
+          ret = call->call();
+        else {
+          args_mode = kDelegateArgsMode_UseSignalArgs;
+        }
+      }
+
+      if (use_args && args_mode == kDelegateArgsMode_UseSignalArgs) {
+        if (call->args()->size() == 0)
+          ret = call->call();
+        else
+          ret = call->call(pargs);
+      }
     }
 
-    return ret ? MoveDelegateResult<TResult>{}(call->result(), result()) : false;
+    if (!ret || call->result()->hash_code() == typeid(void).hash_code())
+      return ret;
+
+    return MoveDelegateResult<TResult>{}(call->result(), result());
   }
 
   struct SharedDelegateType {
     std::shared_ptr<IDelegate> call_;
     std::string tag_;
+    DelegateArgsMode args_mode_ = kDelegateArgsMode_Auto;
   };
 
   struct DelegateType {
     IDelegate* call_ = nullptr;
     std::function<void(IDelegate*)> deleter_ = [](IDelegate*){};
     std::string tag_;
+    DelegateArgsMode args_mode_ = kDelegateArgsMode_Auto;
   };
 
   DelegateResult<TResult> result_;

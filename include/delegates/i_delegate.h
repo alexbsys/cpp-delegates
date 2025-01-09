@@ -9,6 +9,7 @@
 #include <memory>
 #include <functional>
 #include <stdexcept>
+#include <vector>
 
 DELEGATES_BASE_NAMESPACE_BEGIN
 
@@ -208,18 +209,39 @@ struct IDelegate {
 /// \brief    multi delegate interface: provides call list with many delegates with same arguments and return values can be called
 struct ISignal
   : public virtual IDelegate {
+  enum DelegateArgsMode {
+    // Pass signals arguments only to delegate. Delegate arguments must be the same as in signal, or empty. 
+    // If delegate has arguments, but they have different types, delegate will be added to signal, but call may produce error
+    kDelegateArgsMode_UseSignalArgs = 0,
+
+    // Signal will not pass any own arguments, but delegate will be called with their own arguments which were specified by used
+    // into each delegate immediately
+    kDelegateArgsMode_UseDelegateOwnArgs = 1,
+    
+    // Signal analyzes delegate arguments types. If signal and delegate arguments are the same, signal arguments will be
+    // passed. Otherwise delegate will be called with own arguments
+    kDelegateArgsMode_Auto = 2
+  };
+
   virtual ~ISignal() = default;
 
   /// \brief    add delegate to call list. If delegate was added more than one time, it will be called many times
   /// \param    delegate - pointer to delegate
   /// \param    tag - string tag. Tag is not unique, more than one delegates may be added with same tags
   /// \param    deleter - function which called when delegate removed
-  virtual void add(IDelegate* delegate, const std::string& tag = std::string(), std::function<void(IDelegate*)> deleter = [](IDelegate*){}) = 0;
+  virtual void add(
+    IDelegate* delegate, 
+    const std::string& tag = std::string(), 
+    DelegateArgsMode args_mode = kDelegateArgsMode_Auto,
+    std::function<void(IDelegate*)> deleter = [](IDelegate*){}) = 0;
 
   /// \brief    add delegate to call list. If delegate was added more than one time, it will be called many times
   /// \param    delegate - pointer to delegate
   /// \param    tag - string tag. Tag is not unique, more than one delegates may be added with same tags
-  virtual void add(std::shared_ptr<IDelegate> delegate, const std::string& tag = std::string()) = 0;
+  virtual void add(
+    std::shared_ptr<IDelegate> delegate, 
+    const std::string& tag = std::string(),
+    DelegateArgsMode args_mode = kDelegateArgsMode_Auto) = 0;
 
   /// \brief    remove delegate from call list by tag. If more than one delegates were added with single tag, all of them will be removed
   /// \param    tag - string tag
@@ -235,6 +257,9 @@ struct ISignal
 
   /// \brief    remove all delegates from call list
   virtual void remove_all() = 0;
+
+  /// \brief    get all connected delegates
+  virtual void get_all(std::vector<IDelegate*>& delegates) const = 0;
 };
 
 }//namespace delegates

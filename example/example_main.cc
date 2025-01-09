@@ -63,6 +63,40 @@ void DelegatesClassMethods() {
   }
 }
 
+void DelegatesMixedExample() {
+  auto printer = make_shared<Printer>();
+  list<shared_ptr<IDelegate> > calls;
+
+  // parameters initial values may be set immediately in make_shared call
+  calls.push_back(factory::make_shared(printer, &Printer::PrintInt, 42));
+  calls.push_back(factory::make_shared(printer, &Printer::PrintString, string("Hello")));
+  calls.push_back(factory::make_shared(printer, &Printer::PrintIntConst, 1234));
+
+  // or set up later
+  auto delegate1 = factory::make_shared(printer, &Printer::PrintInt);
+  delegate1->args()->set<int>(0, 1234); // set parameteer 0 to 1234
+  calls.push_back(delegate1);
+  
+  auto delegate2 = factory::make_shared(printer, &Printer::PrintString);
+  delegate2->args()->set<string>(0, "TEST");
+  calls.push_back(delegate2);
+
+  // lambda, result type void, args: int, const std::string&
+  auto delegate3 = delegates::factory::make_shared<void, int, const std::string&>([](int a, const std::string& s) { 
+    std::cout << "delegate called, a=" << a << ", s=" << s << std::endl; 
+  });
+
+  delegate3->args()->set<int>(0, 5432);
+  delegate3->args()->set<std::string>(1, "TestLambda");
+
+  calls.push_back(delegate3);
+
+  // call without know anything about parameters
+  for (auto& d : calls) {
+    d->call();
+  }
+}
+
 void DelegateWithReferenceTypes() {
   auto delegate = factory::make_unique<void,const string&,string&>([](const string& in, std::string& out) {
     if (in == "hello")
@@ -102,7 +136,7 @@ void SignalSimpleExample() {
   s += delegates::factory::make_shared<void, int, const std::string&>([](int a, const std::string& s) { std::cout << "signal called from 1, a=" << a << ", s=" << s << std::endl; });
 
   auto delegate2 = delegates::factory::make<void, int, std::string>([](int a, std::string s) { std::cout << "signal called from 2, a=" << a << ", s=" << s << std::endl; });
-  s.add(delegate2, std::string(), [](IDelegate* d) { delete d; });
+  s.add(delegate2, std::string(), ISignal::kDelegateArgsMode_UseSignalArgs, [](IDelegate* d) { delete d; });
 
   // set arguments
   s.args()->set<int>(0, 42);
@@ -124,7 +158,7 @@ void SignalToSignalExample() {
     s1 += delegates::factory::make_shared<void, int, const std::string&>([](int a, const std::string& s) { std::cout << "[1] signal called from 1, a=" << a << ", s=" << s << std::endl; });
 
     auto delegate2 = delegates::factory::make<void, int, std::string>([](int a, std::string s) { std::cout << "[1] signal called from 2, a=" << a << ", s=" << s << std::endl; });
-    s1.add(delegate2, std::string(), [](IDelegate* d) { delete d; });
+    s1.add(delegate2, std::string(), ISignal::kDelegateArgsMode_UseSignalArgs, [](IDelegate* d) { delete d; });
 
 
     s2 += s1;
@@ -147,6 +181,7 @@ void SignalToSignalExample() {
 }
 
 int main(int argc, char* argv[]) {
+  DelegatesMixedExample();
   DelegateWithReferenceTypes();
   DelegatesClassMethods();
   DelegateWithFunctionHelloWorld();
@@ -154,3 +189,6 @@ int main(int argc, char* argv[]) {
 	SignalToSignalExample();
   return 0;
 }
+
+
+

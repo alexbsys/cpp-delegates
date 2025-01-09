@@ -75,7 +75,7 @@ struct Signal : public virtual ISignal {
     ref_signals_.push_back(&signal);
     signal.ref_by_signals_.push_back(this);
 
-    add(signal.delegate_.get(), std::string(), [&signal, this](IDelegate* d) { 
+    add(signal.delegate_.get(), std::string(), ISignal::kDelegateArgsMode_UseSignalArgs, [&signal, this](IDelegate* d) {
       {
         std::lock_guard<std::mutex> lock(mutex_);
         ref_signals_.remove(&signal);
@@ -94,12 +94,23 @@ struct Signal : public virtual ISignal {
     return *this;
   }
 
-  void add(IDelegate* delegate, const std::string& tag = std::string(), std::function<void(IDelegate*)> deleter = [](IDelegate*) {}) override {
-    delegate_->add(delegate, tag, deleter);
+  void add(
+    IDelegate* delegate, 
+    const std::string& tag = std::string(), 
+    DelegateArgsMode args_mode = kDelegateArgsMode_Auto,
+    std::function<void(IDelegate*)> deleter = [](IDelegate*) {}) override {
+    delegate_->add(delegate, tag, args_mode, deleter);
   }
 
-  void add(std::shared_ptr<IDelegate> delegate, const std::string& tag = std::string()) override {
-    delegate_->add(delegate, tag);
+  void add(
+    std::shared_ptr<IDelegate> delegate, 
+    const std::string& tag = std::string(),
+    DelegateArgsMode args_mode = kDelegateArgsMode_Auto) override {
+    delegate_->add(delegate, tag, args_mode);
+  }
+
+  void get_all(std::vector<IDelegate*>& delegates) const override {
+    delegate_->get_all(delegates);
   }
 
   void remove(const std::string& tag) override { delegate_->remove(tag); }

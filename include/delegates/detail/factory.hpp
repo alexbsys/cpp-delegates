@@ -395,27 +395,27 @@ static std::shared_ptr<ISignal> make_shared_signal(DelegateArgs<TArgs...> && par
 
 // autodetect unique
 
-template <typename TResult, typename... TArgs>
+template <typename TResult, typename... TArgs, bool TCheck=true, typename = typename std::enable_if<sizeof...(TArgs) && TCheck>::type>
 static std::unique_ptr<IDelegate> make_unique(TResult f(TArgs...), TArgs... args) {
   return make_unique_function_delegate(f,std::forward<TArgs>(args)...);
 }
 
-template <typename TResult, typename... TArgs>
+template <typename TResult, typename... TArgs, bool TCheck=true, typename = typename std::enable_if<sizeof...(TArgs) && TCheck>::type>
 static std::unique_ptr<IDelegate> make_unique(std::function<TResult(TArgs...)> func, TArgs... args) {
   return make_unique_function_delegate(func,std::forward<TArgs>(args)...);
 }
 
-template <typename TClass, typename TResult, typename... TArgs>
+template <typename TClass, typename TResult, typename... TArgs, bool TCheck=true, typename = typename std::enable_if<sizeof...(TArgs) && TCheck>::type>
 static std::unique_ptr<IDelegate> make_unique(TClass* callee, TResult (TClass::*method)(TArgs...), TArgs... args) {
   return make_unique_method_delegate(callee, method, std::forward<TArgs>(args)...);
 }
 
-template <typename TClass, typename TResult, typename... TArgs>
+template <typename TClass, typename TResult, typename... TArgs, bool TCheck=true, typename = typename std::enable_if<sizeof...(TArgs) && TCheck>::type>
 static std::unique_ptr<IDelegate> make_unique(std::shared_ptr<TClass> callee, TResult (TClass::*method)(TArgs...), TArgs... args) {
   return make_unique_method_delegate<TClass, TResult, TArgs...>(callee, method, std::forward<TArgs>(args)...);
 }
 
-template <typename TResult=void, typename... TArgs, typename F>
+template <typename TResult=void, typename... TArgs, typename F, bool TCheck=true, typename = typename std::enable_if<sizeof...(TArgs) && TCheck>::type>
 static std::unique_ptr<IDelegate> make_unique(F && lambda, TArgs&&... args) {
   return make_unique_lambda_delegate<TResult, TArgs...>(std::move(lambda), std::forward<TArgs>(args)...);
 }
@@ -425,7 +425,7 @@ static std::unique_ptr<IDelegate> make_unique(F && lambda, DelegateArgs<TArgs...
   return make_unique_lambda_delegate<TResult, TArgs...>(std::move(lambda), std::move(params));
 }
 
-template <typename TResult=void, typename... TArgs>
+template <typename TResult=void, typename... TArgs, bool TCheck=true, typename = typename std::enable_if<sizeof...(TArgs) && TCheck>::type>
 static std::unique_ptr<ISignal> make_unique_signal(TArgs&&... args) {
   return std::make_unique<detail::SignalBase<TResult,TArgs...> >(std::forward<TArgs>(args)...);
 }

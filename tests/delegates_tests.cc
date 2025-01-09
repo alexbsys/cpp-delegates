@@ -672,18 +672,33 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_VoidResult) {
   int r3i = 0;
   std::string r3s;
 
+  int r4i = 0;
+  std::string r4s;
+
+  bool r5called = false;
+
+  const int kTestValue = 777;
+  const std::string kTestString = "TestStr";
+
   auto call1 = delegates::factory::make_lambda_delegate<void, int, std::string>([&r1i, &r1s](int i, std::string s) { r1i = i; r1s = s; });
   auto call2 = delegates::factory::make_lambda_delegate<void, int, std::string>([&r2i, &r2s](int i, std::string s) { r2i = i; r2s = s; });
   std::shared_ptr<IDelegate> call3 = delegates::factory::make_shared<void, int, std::string>([&r3i, &r3s](int i, std::string s) { r3i = i; r3s = s; });
+  std::shared_ptr<IDelegate> call4 = delegates::factory::make_shared_lambda_delegate<void, int, std::string>([&r4i, &r4s](int i, std::string s) { r4i = i; r4s = s; },
+    kTestValue, kTestString);
+  std::shared_ptr<IDelegate> call5 = delegates::factory::make_shared_lambda_delegate([&r5called]() { r5called = true; });
+
 
   ASSERT_EQ(delegates->args()->size(), 2);
   ASSERT_EQ(call1->args()->size(), 2);
   ASSERT_EQ(call2->args()->size(), 2);
   ASSERT_EQ(call3->args()->size(), 2);
+  ASSERT_EQ(call4->args()->size(), 2);
 
-  delegates->add(call1, "", [](IDelegate* c) { delete c; });
-  delegates->add(call2, "call2", [](IDelegate* c) { delete c; });
-  delegates->add(call3, "call3");
+  delegates->add(call1, "", delegates::ISignal::kDelegateArgsMode_UseSignalArgs, [](IDelegate* c) { delete c; });
+  delegates->add(call2, "call2", delegates::ISignal::kDelegateArgsMode_Auto, [](IDelegate* c) { delete c; });
+  delegates->add(call3, "call3", delegates::ISignal::kDelegateArgsMode_UseSignalArgs);
+  delegates->add(call4, "call4", delegates::ISignal::kDelegateArgsMode_UseDelegateOwnArgs);
+  delegates->add(call5, "");
 
   int v = 42;
   delegates->args()->set<int>(0, v);
@@ -701,6 +716,11 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_VoidResult) {
 
   ASSERT_EQ(r3i, 42);
   ASSERT_TRUE(r3s == "hello");
+
+  ASSERT_EQ(r4i, kTestValue);
+  ASSERT_TRUE(r4s == kTestString);
+
+  ASSERT_TRUE(r5called);
 }
 
 int g_delegates_multicalls_test_result_instances = 0;
@@ -760,8 +780,8 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_RefParamsWithResult) {
   ASSERT_EQ(call2->args()->size(), 2);
   ASSERT_EQ(call3->args()->size(), 2);
 
-  delegates->add(call1, std::string(), [](IDelegate* c) { delete c; });
-  delegates->add(call2, "call2", [](IDelegate* c) { delete c; });
+  delegates->add(call1, std::string(), delegates::ISignal::kDelegateArgsMode_Auto, [](IDelegate* c) { delete c; });
+  delegates->add(call2, "call2", delegates::ISignal::kDelegateArgsMode_Auto, [](IDelegate* c) { delete c; });
   delegates->add(call3, "call3");
 
   bool ret = delegates->call();
