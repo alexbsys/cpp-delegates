@@ -41,8 +41,17 @@ class DelegateResult
     if (!value_ptr) // ptr==null means just clear stored value
       return true;
 
-    if (hash_code() != type_hash)
+    if (hash_code() != type_hash) {
+#if DELEGATES_TRACE
+      std::cerr << "Delegate result was not set: value type hash code is not the same as result type" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Delegate result was not set: value type hash code is not the same as result type");
+#endif //DELEGATES_STRICT
+
       return false;
+    }
 
     const value_noconst* pv = reinterpret_cast<const value_noconst*>(value_ptr);
     value_ = *pv;
@@ -54,11 +63,24 @@ class DelegateResult
   bool detach_ptr(void* value_ptr, size_t value_size, std::function<void(void*)>& deleter_ptr) override {
     using value_noconst = typename std::decay<TValue>::type;
 
-    if (!has_value_)
+    if (!has_value_) {
+#if DELEGATES_TRACE
+      std::cerr << "WARNING Delegate result was not detached: has no value" << std::endl;
+#endif //DELEGATES_TRACE
       return false;
+    }
 
-    if (value_size != std::numeric_limits<size_t>::max() && value_size != sizeof(value_))
+    if (value_size != std::numeric_limits<size_t>::max() && value_size != sizeof(value_)) {
+#if DELEGATES_TRACE
+      std::cerr << "Delegate result was not detached: value size is not the same" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+      throw std::runtime_error("Delegate result was not detached: value size is not the same");
+#endif //DELEGATES_STRICT
+
       return false;
+    }
 
     value_noconst* v = reinterpret_cast<value_noconst*>(value_ptr);
     *v = value_;
@@ -104,8 +126,28 @@ class DelegateResult<void>
  public:
   ~DelegateResult() override = default;
 
-  bool set_ptr(const void* value_ptr, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void* ptr) {}) override { return false; }
-  bool detach_ptr(void* value_ptr, size_t value_size, std::function<void(void*)>& deleter_ptr) override { return false; }
+  bool set_ptr(const void* value_ptr, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void* ptr) {}) override { 
+#if DELEGATES_TRACE
+    std::cerr << "Delegate result set() called for void result" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+    throw std::runtime_error("Delegate result set() called for void result");
+#endif //DELEGATES_STRICT
+
+    return false; 
+  }
+  bool detach_ptr(void* value_ptr, size_t value_size, std::function<void(void*)>& deleter_ptr) override { 
+#if DELEGATES_TRACE
+    std::cerr << "Delegate result detach() called for void result" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+    throw std::runtime_error("Delegate result detach() called for void result");
+#endif //DELEGATES_STRICT
+
+    return false; 
+  }
   bool has_value() const override { return false; }
   void* get_ptr() override { return nullptr; }
   const void* get_ptr() const override { return nullptr; }
@@ -124,6 +166,15 @@ struct MoveDelegateResult {
     if (from->detach_ptr(&ret_val, sizeof(ret_val), deleter)) {
       return to->set_ptr(&ret_val, typeid(TResult).hash_code(), deleter);
     }
+
+#if DELEGATES_TRACE
+    std::cerr << "Move delegate result failed" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+    throw std::runtime_error("Move delegate result failed");
+#endif //DELEGATES_STRICT
+
     return false;
   }
 };

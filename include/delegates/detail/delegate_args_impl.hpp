@@ -35,8 +35,9 @@ public:
   explicit DelegateArgsImpl(TArgs&&... args)
     : values_args_(std::forward<TArgs>(args)...)
     , def_args_(std::tuple<typename std::decay<TArgs>::type...> {})
-    , ref_args_(tuple_runtime::ref_tuple(values_args_))
-  { setup_deleters(); }
+    , ref_args_(tuple_runtime::ref_tuple(values_args_)) { 
+    setup_deleters(); 
+  }
 
   // Constructor with std::nullptr_t{} parameter means that arguments are initialized with default values
   DelegateArgsImpl(std::nullptr_t) noexcept
@@ -70,6 +71,15 @@ public:
       deleters_[idx] = deleter_ptr;
       return true;
     }
+
+#if DELEGATES_TRACE
+    std::cerr << "Delegate argument was not set, idx=" << idx << ", type hash " << type_hash << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+    throw std::runtime_error("Delegate argument was not set");
+#endif //DELEGATES_STRICT
+
     return false;
   }
 
@@ -121,12 +131,36 @@ public:
   void clear() override {}
   void clear(size_t idx) override {}
   bool set_ptr(size_t idx, void* pv, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void* ptr) {}) override {
+#if DELEGATES_TRACE
+    std::cerr << "DelegateArgs: called set() for void argument" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+    throw std::runtime_error("DelegateArgs: called set() for void argument");
+#endif //DELEGATES_STRICT
+
     return false;
   }
 
   size_t size() const override { return 0; }
-  size_t hash_code(size_t idx) const override { return 0; }
-  void* get_ptr(size_t idx) const override { return nullptr; }
+
+  size_t hash_code(size_t idx) const override { 
+#if DELEGATES_TRACE
+    std::cerr << "DelegateArgs: called hash_code() for empty argument" << std::endl;
+#endif //DELEGATES_TRACE
+    return 0;
+  }
+  void* get_ptr(size_t idx) const override { 
+#if DELEGATES_TRACE
+    std::cerr << "DelegateArgs: called get() for void argument" << std::endl;
+#endif //DELEGATES_TRACE
+
+#if DELEGATES_STRICT
+    throw std::runtime_error("DelegateArgs: called get() for void argument");
+#endif //DELEGATES_STRICT
+
+    return nullptr; 
+  }
 
   std::tuple<>& get_tuple() { return ref_args_; }
   const std::tuple<>& get_tuple() const { return ref_args_; }
