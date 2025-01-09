@@ -677,6 +677,9 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_VoidResult) {
 
   bool r5called = false;
 
+  int r6i = 0;
+  std::string r6s;
+
   const int kTestValue = 777;
   const std::string kTestString = "TestStr";
 
@@ -687,18 +690,24 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_VoidResult) {
     kTestValue, kTestString);
   std::shared_ptr<IDelegate> call5 = delegates::factory::make_shared_lambda_delegate([&r5called]() { r5called = true; });
 
+  std::shared_ptr<IDelegate> call6 = delegates::factory::make_shared_lambda_delegate<void, std::string, int>([&r6i, &r6s](std::string s, int i) { r6i = i; r6s = s; },
+    kTestString, kTestValue);
+
 
   ASSERT_EQ(delegates->args()->size(), 2);
   ASSERT_EQ(call1->args()->size(), 2);
   ASSERT_EQ(call2->args()->size(), 2);
   ASSERT_EQ(call3->args()->size(), 2);
   ASSERT_EQ(call4->args()->size(), 2);
+  ASSERT_EQ(call5->args()->size(), 0);
+  ASSERT_EQ(call6->args()->size(), 2);
 
   delegates->add(call1, "", delegates::ISignal::kDelegateArgsMode_UseSignalArgs, [](IDelegate* c) { delete c; });
   delegates->add(call2, "call2", delegates::ISignal::kDelegateArgsMode_Auto, [](IDelegate* c) { delete c; });
   delegates->add(call3, "call3", delegates::ISignal::kDelegateArgsMode_UseSignalArgs);
   delegates->add(call4, "call4", delegates::ISignal::kDelegateArgsMode_UseDelegateOwnArgs);
   delegates->add(call5, "");
+  delegates->add(call6, "", delegates::ISignal::kDelegateArgsMode_Auto);
 
   int v = 42;
   delegates->args()->set<int>(0, v);
@@ -721,6 +730,9 @@ TEST_F(DeferredCallTests, TestDelegates_MultiCalls_VoidResult) {
   ASSERT_TRUE(r4s == kTestString);
 
   ASSERT_TRUE(r5called);
+
+  ASSERT_EQ(r6i, kTestValue);
+  ASSERT_TRUE(r6s == kTestString);
 }
 
 int g_delegates_multicalls_test_result_instances = 0;
