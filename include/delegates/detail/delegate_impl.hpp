@@ -547,7 +547,7 @@ class FunctionalDelegate<void, TArgs...>
 
   ~FunctionalDelegate() = default;
 private:
-  bool perform_call(DelegateResult<void>& result, DelegateArgs<TArgs...>& args) override {
+  bool perform_call(DelegateResult<void>&, DelegateArgs<TArgs...>& args) override {
     perform_call(args, std::make_index_sequence<sizeof...(TArgs)>{});
     return true;
   }

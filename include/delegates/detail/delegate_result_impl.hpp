@@ -87,7 +87,7 @@ class DelegateResult
     deleter_ptr = deleter_ptr_;
     value_ = default_value_;
     has_value_ = false;
-    deleter_ptr_ = [](void* ptr) {};
+    deleter_ptr_ = [](void*) {};
     return true;
   }
 
@@ -126,7 +126,10 @@ class DelegateResult<void>
  public:
   ~DelegateResult() override = default;
 
-  bool set_ptr(const void* value_ptr, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void* ptr) {}) override { 
+  bool set_ptr(const void* value_ptr, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void*) {}) override { 
+    (void)value_ptr;
+    (void)type_hash;
+    (void)deleter_ptr;
 #if DELEGATES_TRACE
     std::cerr << "Delegate result set() called for void result" << std::endl;
 #endif //DELEGATES_TRACE
@@ -138,6 +141,9 @@ class DelegateResult<void>
     return false; 
   }
   bool detach_ptr(void* value_ptr, size_t value_size, std::function<void(void*)>& deleter_ptr) override { 
+    (void)value_ptr;
+    (void)value_size;
+    (void)deleter_ptr;
 #if DELEGATES_TRACE
     std::cerr << "Delegate result detach() called for void result" << std::endl;
 #endif //DELEGATES_TRACE
@@ -182,7 +188,7 @@ struct MoveDelegateResult {
 /// \brief    Move delegate result for void types
 template<>
 struct MoveDelegateResult<void> {
-  bool operator()(IDelegateResult* from, IDelegateResult* to) { return true; }
+  bool operator()(IDelegateResult* from, IDelegateResult* to) { (void)from; (void)to; return true; }
 };
 
 }//namespace detail

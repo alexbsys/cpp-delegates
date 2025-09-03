@@ -61,7 +61,7 @@ public:
       deleters_[idx](ptr);
 
     tuple_runtime::runtime_tuple_set_value_ptr(values_args_, def_args_, idx, nullptr, 0);
-    deleters_[idx] = [](void* ptr) {};
+    deleters_[idx] = [](void*) {};
   }
 
   bool set_ptr(size_t idx, void* pv, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void* ptr) {}) override  {
@@ -123,14 +123,15 @@ class DelegateArgsImpl<0>
   DelegateArgsImpl& operator=(const DelegateArgsImpl&) { return *this;  }
 
 public:
-  DelegateArgsImpl(DelegateArgsImpl&& params) noexcept {}
+  DelegateArgsImpl(DelegateArgsImpl&&) noexcept {}
   DelegateArgsImpl() {}
   DelegateArgsImpl(std::nullptr_t) {}
   ~DelegateArgsImpl() override = default;
 
   void clear() override {}
-  void clear(size_t idx) override {}
-  bool set_ptr(size_t idx, void* pv, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void* ptr) {}) override {
+  void clear(size_t idx) override { (void)idx; }
+  bool set_ptr(size_t idx, void* pv, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void*) {}) override {
+    (void)idx; (void)pv; (void)type_hash; (void)deleter_ptr;
 #if DELEGATES_TRACE
     std::cerr << "DelegateArgs: called set() for void argument" << std::endl;
 #endif //DELEGATES_TRACE
@@ -145,12 +146,14 @@ public:
   size_t size() const override { return 0; }
 
   size_t hash_code(size_t idx) const override { 
+    (void)idx;
 #if DELEGATES_TRACE
     std::cerr << "DelegateArgs: called hash_code() for empty argument" << std::endl;
 #endif //DELEGATES_TRACE
     return 0;
   }
   void* get_ptr(size_t idx) const override { 
+    (void)idx;
 #if DELEGATES_TRACE
     std::cerr << "DelegateArgs: called get() for void argument" << std::endl;
 #endif //DELEGATES_TRACE

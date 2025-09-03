@@ -38,7 +38,7 @@ struct IDelegateResult {
   virtual size_t hash_code() const = 0;
 
   /// \brief    set result value by void* pointer
-  virtual bool set_ptr(const void* value_ptr, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void* ptr) {}) = 0;
+  virtual bool set_ptr(const void* value_ptr, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void*) {}) = 0;
 
   /// \brief    detach stored value (copy to new buffer without call of deleter)
   virtual bool detach_ptr(void* value_ptr, size_t value_buffer_size, std::function<void(void*)>& deleter_ptr) = 0;
@@ -104,7 +104,7 @@ struct IDelegateArgs {
   /// \param    type_hash - RTTI hash code from argument type
   /// \param    deleter_ptr - deleter function which called when argument value is released by delegate
   /// \return   true - OK, false - type error
-  virtual bool set_ptr(size_t idx, void* pv, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void* ptr) {}) = 0;
+  virtual bool set_ptr(size_t idx, void* pv, size_t type_hash, std::function<void(void*)> deleter_ptr = [](void*) {}) = 0;
 
   /// \brief    Get void* pointer to stored agrument value by index
   /// \param    idx - argument index

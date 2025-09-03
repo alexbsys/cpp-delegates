@@ -52,6 +52,7 @@ constexpr bool tuple_set_value_or_default_ptr_fn(Tuple& tup, TDefaultValTuple& t
 // get tuple element type hash by index. Type of element checked 'as is'
 template<size_t Idx, typename Tuple>
 constexpr size_t tuple_get_item_type_hash_fn(const Tuple& tup)  {
+  (void)tup;
   using elem_type=typename std::tuple_element<Idx,Tuple>::type;
   return typeid(elem_type).hash_code();
 };
