@@ -1,3 +1,24 @@
+//
+// Copyright (c) 2025, Alex Bobryshev <alexbobryshev555@gmail.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
 
 #ifndef RESOURCE_CHECKER_HPP
 #define RESOURCE_CHECKER_HPP
@@ -69,7 +90,6 @@ public:
     std::string diff_string = ss.str();
 
     int current_objects_usage = 0;
-    //LOG_OBJMON_GET_REGISTERED_OBJECTS_COUNT(&current_objects_usage);
 
     if (diff > 1024) {
       colored_printf(nullptr, "Usage after test '%fW' %fr bytes, diff %fr bytes\n", test_info.name(),
@@ -81,16 +101,6 @@ public:
       colored_printf(nullptr, "Usage after test '%fW' %fg bytes, diff %fg bytes\n", test_info.name(),
            bytes_string.c_str(), diff_string.c_str());
     }
-    /*
-    int objects_alive_left = current_objects_usage - start_objects_usage_;
-    if (objects_alive_left == 0) {
-      std::string objects_string = stringformat("No left alive (%d on start)", objects_alive_left, start_objects_usage_);
-      colored_printf(nullptr, "%fg %fw\n", "[ OBJECTS  ]", objects_string.c_str());
-    } else {
-      std::string objects_string = stringformat("%d objects left alive (%d on start, %d on finish)", objects_alive_left, start_objects_usage_, current_objects_usage);
-      colored_printf(nullptr, "%fy %fy\n", "[ OBJECTS  ]", objects_string.c_str());
-      LOG_OBJMON_DUMP_CONSOLE();
-    }*/
 
     size_t current_threads = GetThreadsCount();
     size_t current_handles = GetHandlesCount();
@@ -197,6 +207,5 @@ private:
   size_t start_handles_count_ = 0;
 };
 } //namespace testing
-
 
 #endif //RESOURCE_CHECKER_HPP

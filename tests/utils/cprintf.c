@@ -1,3 +1,4 @@
+
 #include "cprintf.h"
 
 #include <ctype.h>
@@ -14,8 +15,7 @@ static cprintf_t global_cprintf
 #endif
 ;
 
-CPRINTF_EXPORT bool colored_printf_use(cprintf_t *handle, const cprintf_fd_t type)
-{
+CPRINTF_EXPORT bool colored_printf_use(cprintf_t *handle, const cprintf_fd_t type) {
     if (handle == NULL)
     {
         handle = &global_cprintf;
