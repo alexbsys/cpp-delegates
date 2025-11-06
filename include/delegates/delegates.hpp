@@ -28,5 +28,6 @@
 #include "detail/delegate_impl.hpp"
 #include "detail/signal.hpp"
 #include "detail/factory.hpp"
+#include "typed_delegate.hpp"
 
 #endif //DELEGATES_HEADER

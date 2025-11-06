@@ -25,6 +25,16 @@
 #include <iostream>
 #include <string>
 
+#ifdef DELEGATES_WITH_JSON_SERIALIZATION
+#include <delegates/serialization/json_serializer.hpp>
+#include <nlohmann/json.hpp>
+#endif
+
+#ifdef DELEGATES_WITH_BINARY_SERIALIZATION
+#include <delegates/serialization/binary_serializer.hpp>
+#include <msgpack.h>
+#endif
+
 USING_DELEGATES_BASE_NAMESPACE
 using namespace DELEGATES_BASE_NAMESPACE::delegates;
 
@@ -201,6 +211,174 @@ void SignalToSignalExample() {
   s2();
 }
 
+// ============================================================================
+// New API examples
+// ============================================================================
+
+void TypedDelegateExample() {
+  std::cout << "\n=== TypedDelegate Example ===" << std::endl;
+  
+  // Automatic type deduction
+  auto delegate = delegates::factory::make_delegate_auto(
+    [](int x, std::string s) -> int {
+      std::cout << "Called with x=" << x << ", s=" << s << std::endl;
+      return x + static_cast<int>(s.length());
+    }
+  );
+  
+  // Direct call with arguments
+  int result = delegate(42, "hello");
+  std::cout << "Result: " << result << std::endl;
+  
+  // Access to untyped interface (for executor)
+  IDelegate* untyped = delegate.get_interface();
+  untyped->args()->set<int>(0, 100);
+  untyped->args()->set<std::string>(1, "world");
+  untyped->call();
+  int result2 = untyped->result()->get<int>();
+  std::cout << "Result2: " << result2 << std::endl;
+}
+
+void TypedDelegateExplicitTypesExample() {
+  std::cout << "\n=== TypedDelegate with Explicit Types ===" << std::endl;
+  
+  // Explicit types for control over references
+  auto delegate = delegates::factory::make_delegate<int, const std::string&>(
+    [](const std::string& s) -> int {
+      std::cout << "String: " << s << std::endl;
+      return static_cast<int>(s.length());
+    }
+  );
+  
+  std::string str = "test";
+  int result = delegate(str);
+  std::cout << "Result: " << result << std::endl;
+}
+
+void TypedDelegateMethodExample() {
+  std::cout << "\n=== TypedDelegate with Method ===" << std::endl;
+  
+  class Calculator {
+  public:
+    int add(int a, int b) {
+      return a + b;
+    }
+    
+    int multiply(int a, int b) const {
+      return a * b;
+    }
+  };
+  
+  auto calc = std::make_shared<Calculator>();
+  
+  // Method delegate
+  auto add_delegate = delegates::factory::make_delegate(calc, &Calculator::add);
+  int sum = add_delegate(10, 20);
+  std::cout << "10 + 20 = " << sum << std::endl;
+  
+  // Const method delegate
+  auto mult_delegate = delegates::factory::make_delegate(calc, &Calculator::multiply);
+  int product = mult_delegate(5, 6);
+  std::cout << "5 * 6 = " << product << std::endl;
+}
+
+void TypedDelegateSharedExample() {
+  std::cout << "\n=== TypedDelegate Shared ===" << std::endl;
+  
+  auto delegate = delegates::factory::make_delegate_shared_auto(
+    [](int x) -> int {
+      return x * 2;
+    }
+  );
+  
+  int result = (*delegate)(21);
+  std::cout << "21 * 2 = " << result << std::endl;
+  
+  // Can be stored and shared
+  std::vector<std::shared_ptr<delegates::TypedDelegate<int, int>>> delegates_list;
+  delegates_list.push_back(delegate);
+}
+
+#ifdef DELEGATES_WITH_JSON_SERIALIZATION
+void SerializationJsonExample() {
+  std::cout << "\n=== JSON Serialization Example ===" << std::endl;
+  
+  // Create delegate
+  auto delegate = delegates::factory::make_delegate<int, std::string, int>(
+    [](std::string s, int x) -> int {
+      return static_cast<int>(s.length()) + x;
+    }
+  );
+  
+  // Set arguments (correct order: string first, then int)
+  delegate("hello", 10);
+  
+  // Create serializer
+  delegates::serialization::JsonSerializer json_serializer;
+  delegates::serialization::DelegateSerializer serializer(&json_serializer);
+  
+  // Serialize
+  std::vector<uint8_t> serialized;
+  if (serializer.serialize_args(delegate.get_interface(), serialized)) {
+    std::cout << "Serialized size: " << serialized.size() << " bytes" << std::endl;
+    
+    // Deserialize
+    auto new_delegate = delegates::factory::make_delegate<int, std::string, int>(
+      [](std::string s, int x) -> int {
+        return static_cast<int>(s.length()) + x;
+      }
+    );
+    
+    size_t offset = 0;
+    if (serializer.deserialize_args(new_delegate.get_interface(), serialized, offset)) {
+      new_delegate.call();
+      int result = new_delegate.get_result<int>();
+      std::cout << "Deserialized and called, result: " << result << std::endl;
+    }
+  }
+}
+#endif
+
+#ifdef DELEGATES_WITH_BINARY_SERIALIZATION
+void SerializationBinaryExample() {
+  std::cout << "\n=== Binary Serialization Example ===" << std::endl;
+  
+  // Create delegate
+  auto delegate = delegates::factory::make_delegate<int, int, int>(
+    [](int a, int b) -> int {
+      return a + b;
+    }
+  );
+  
+  // Set arguments
+  delegate(5, 7);
+  
+  // Create serializer
+  delegates::serialization::BinarySerializer binary_serializer;
+  delegates::serialization::DelegateSerializer serializer(&binary_serializer);
+  
+  // Serialize
+  std::vector<uint8_t> serialized;
+  if (serializer.serialize_args(delegate.get_interface(), serialized)) {
+    std::cout << "Serialized size: " << serialized.size() << " bytes" << std::endl;
+    
+    // Deserialize
+    auto new_delegate = delegates::factory::make_delegate<int, int, int>(
+      [](int a, int b) -> int {
+        return a + b;
+      }
+    );
+    
+    size_t offset = 0;
+    if (serializer.deserialize_args(new_delegate.get_interface(), serialized, offset)) {
+      new_delegate.call();
+      int result = new_delegate.get_result<int>();
+      std::cout << "Deserialized and called, result: " << result << std::endl;
+    }
+  }
+}
+#endif
+
 int main(int argc, char* argv[]) {
   DelegatesMixedExample();
   DelegateWithReferenceTypes();
@@ -208,6 +386,21 @@ int main(int argc, char* argv[]) {
   DelegateWithFunctionHelloWorld();
 	SignalSimpleExample();
 	SignalToSignalExample();
+  
+  // New API examples
+  TypedDelegateExample();
+  TypedDelegateExplicitTypesExample();
+  TypedDelegateMethodExample();
+  TypedDelegateSharedExample();
+  
+  #ifdef DELEGATES_WITH_JSON_SERIALIZATION
+  SerializationJsonExample();
+  #endif
+  
+  #ifdef DELEGATES_WITH_BINARY_SERIALIZATION
+  SerializationBinaryExample();
+  #endif
+  
   return 0;
 }
 

@@ -41,11 +41,21 @@ set (DELEGATES_LIB_HEADER_FILES
   ../include/delegates/detail/delegate_impl.hpp
   ../include/delegates/detail/factory.hpp
   ../include/delegates/detail/tuple_runtime.hpp
+  ../include/delegates/detail/function_traits.hpp
+  ../include/delegates/detail/callable_traits.hpp
+  ../include/delegates/typed_delegate.hpp
+  ../include/delegates/serialization/iserializer.h
+  ../include/delegates/serialization/iserializer_impl.hpp
 )
   
 include_directories("${CMAKE_CURRENT_LIST_DIR}/../include")
 
 add_executable(cpp-delegates-tests ${SOURCE_FILES} ${HEADER_FILES} ${DELEGATES_LIB_HEADER_FILES})
-target_link_libraries(cpp-delegates-tests gtest_main)
+target_link_libraries(cpp-delegates-tests gtest_main cpp-delegates)
+
+# Add /bigobj flag for MSVC to handle large object files
+if(MSVC)
+    target_compile_options(cpp-delegates-tests PRIVATE /bigobj)
+endif()
 
 install(TARGETS cpp-delegates-tests DESTINATION ../out)

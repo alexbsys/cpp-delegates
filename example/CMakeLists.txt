@@ -22,9 +22,19 @@ set (DELEGATES_LIB_HEADER_FILES
   ../include/delegates/detail/delegate_impl.hpp
   ../include/delegates/detail/factory.hpp
   ../include/delegates/detail/tuple_runtime.hpp
+  ../include/delegates/detail/function_traits.hpp
+  ../include/delegates/detail/callable_traits.hpp
+  ../include/delegates/typed_delegate.hpp
+  ../include/delegates/serialization/iserializer.h
+  ../include/delegates/serialization/iserializer_impl.hpp
 )
 
 include_directories("${CMAKE_CURRENT_LIST_DIR}/../include")
 
 add_executable(cpp-delegates-example ${SOURCE_FILES} ${DELEGATES_LIB_HEADER_FILES})
+target_link_libraries(cpp-delegates-example cpp-delegates)
+
+if(MSVC)
+    target_compile_options(cpp-delegates-example PRIVATE /bigobj)
+endif()
 install(TARGETS cpp-delegates-example DESTINATION ../out)
