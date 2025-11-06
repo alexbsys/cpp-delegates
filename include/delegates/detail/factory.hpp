@@ -482,6 +482,18 @@ auto make_delegate_unique_auto_impl(detail::lambda_tag, F&& lambda,
 template<typename F, size_t... Is>
 auto make_delegate_unique_auto_impl(detail::function_tag, F&& func,
                                     std::index_sequence<Is...>);
+template<typename Result, typename... Args, typename F>
+IDelegate* make_delegate_impl(detail::lambda_tag, F&& lambda);
+template<typename Result, typename... Args, typename F>
+IDelegate* make_delegate_impl(detail::function_tag, F&& func);
+template<typename Result, typename... Args, typename F>
+std::shared_ptr<IDelegate> make_shared_delegate_impl(detail::lambda_tag, F&& lambda);
+template<typename Result, typename... Args, typename F>
+std::shared_ptr<IDelegate> make_shared_delegate_impl(detail::function_tag, F&& func);
+template<typename Result, typename... Args, typename F>
+std::unique_ptr<IDelegate> make_unique_delegate_impl(detail::lambda_tag, F&& lambda);
+template<typename Result, typename... Args, typename F>
+std::unique_ptr<IDelegate> make_unique_delegate_impl(detail::function_tag, F&& func);
 
 /// \brief    Create delegate with automatic type deduction from callable
 ///           Returns TypedDelegate for convenient direct calls
