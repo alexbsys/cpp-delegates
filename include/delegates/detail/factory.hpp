@@ -463,6 +463,26 @@ static std::unique_ptr<ISignal> make_unique_signal(DelegateArgs<TArgs...> && par
 // New unified API with automatic type deduction
 // ============================================================================
 
+// Forward declarations
+template<typename F, size_t... Is>
+auto make_delegate_auto_impl(detail::lambda_tag, F&& lambda, 
+                              std::index_sequence<Is...>);
+template<typename F, size_t... Is>
+auto make_delegate_auto_impl(detail::function_tag, F&& func,
+                              std::index_sequence<Is...>);
+template<typename F, size_t... Is>
+auto make_delegate_shared_auto_impl(detail::lambda_tag, F&& lambda,
+                                     std::index_sequence<Is...>);
+template<typename F, size_t... Is>
+auto make_delegate_shared_auto_impl(detail::function_tag, F&& func,
+                                    std::index_sequence<Is...>);
+template<typename F, size_t... Is>
+auto make_delegate_unique_auto_impl(detail::lambda_tag, F&& lambda,
+                                    std::index_sequence<Is...>);
+template<typename F, size_t... Is>
+auto make_delegate_unique_auto_impl(detail::function_tag, F&& func,
+                                    std::index_sequence<Is...>);
+
 /// \brief    Create delegate with automatic type deduction from callable
 ///           Returns TypedDelegate for convenient direct calls
 template<typename F>
@@ -481,10 +501,10 @@ auto make_delegate_auto_impl(detail::lambda_tag, F&& lambda,
                               std::index_sequence<Is...>) {
     using traits = detail::function_traits<std::decay_t<F>>;
     IDelegate* raw = make_lambda_delegate<
-        traits::result_type, 
-        traits::template arg_type<Is>...
+        typename traits::result_type, 
+        typename traits::template arg_type<Is>...
     >(std::forward<F>(lambda));
-    return TypedDelegate<traits::result_type, traits::template arg_type<Is>...>(raw, true);
+    return TypedDelegate<typename traits::result_type, typename traits::template arg_type<Is>...>(raw, true);
 }
 
 template<typename F, size_t... Is>
@@ -492,10 +512,10 @@ auto make_delegate_auto_impl(detail::function_tag, F&& func,
                               std::index_sequence<Is...>) {
     using traits = detail::function_traits<std::decay_t<F>>;
     IDelegate* raw = make_function_delegate<
-        traits::result_type,
-        traits::template arg_type<Is>...
+        typename traits::result_type,
+        typename traits::template arg_type<Is>...
     >(std::forward<F>(func));
-    return TypedDelegate<traits::result_type, traits::template arg_type<Is>...>(raw, true);
+    return TypedDelegate<typename traits::result_type, typename traits::template arg_type<Is>...>(raw, true);
 }
 
 /// \brief    Create typed delegate with explicit type specification
@@ -561,10 +581,10 @@ auto make_delegate_shared_auto_impl(detail::lambda_tag, F&& lambda,
                                      std::index_sequence<Is...>) {
     using traits = detail::function_traits<std::decay_t<F>>;
     auto raw = make_shared_lambda_delegate<
-        traits::result_type,
-        traits::template arg_type<Is>...
+        typename traits::result_type,
+        typename traits::template arg_type<Is>...
     >(std::forward<F>(lambda));
-    return std::make_shared<TypedDelegate<traits::result_type, traits::template arg_type<Is>...>>(raw);
+    return std::make_shared<TypedDelegate<typename traits::result_type, typename traits::template arg_type<Is>...>>(raw);
 }
 
 template<typename F, size_t... Is>
@@ -572,10 +592,10 @@ auto make_delegate_shared_auto_impl(detail::function_tag, F&& func,
                                     std::index_sequence<Is...>) {
     using traits = detail::function_traits<std::decay_t<F>>;
     auto raw = make_shared_function_delegate<
-        traits::result_type,
-        traits::template arg_type<Is>...
+        typename traits::result_type,
+        typename traits::template arg_type<Is>...
     >(std::forward<F>(func));
-    return std::make_shared<TypedDelegate<traits::result_type, traits::template arg_type<Is>...>>(raw);
+    return std::make_shared<TypedDelegate<typename traits::result_type, typename traits::template arg_type<Is>...>>(raw);
 }
 
 /// \brief    Create shared typed delegate with explicit types
@@ -614,10 +634,10 @@ auto make_delegate_unique_auto_impl(detail::lambda_tag, F&& lambda,
                                     std::index_sequence<Is...>) {
     using traits = detail::function_traits<std::decay_t<F>>;
     auto raw = make_unique_lambda_delegate<
-        traits::result_type,
-        traits::template arg_type<Is>...
+        typename traits::result_type,
+        typename traits::template arg_type<Is>...
     >(std::forward<F>(lambda));
-    return TypedDelegate<traits::result_type, traits::template arg_type<Is>...>(std::move(raw));
+    return TypedDelegate<typename traits::result_type, typename traits::template arg_type<Is>...>(std::move(raw));
 }
 
 template<typename F, size_t... Is>
@@ -625,10 +645,10 @@ auto make_delegate_unique_auto_impl(detail::function_tag, F&& func,
                                     std::index_sequence<Is...>) {
     using traits = detail::function_traits<std::decay_t<F>>;
     auto raw = make_unique_function_delegate<
-        traits::result_type,
-        traits::template arg_type<Is>...
+        typename traits::result_type,
+        typename traits::template arg_type<Is>...
     >(std::forward<F>(func));
-    return TypedDelegate<traits::result_type, traits::template arg_type<Is>...>(std::move(raw));
+    return TypedDelegate<typename traits::result_type, typename traits::template arg_type<Is>...>(std::move(raw));
 }
 
 /// \brief    Create unique typed delegate with explicit types

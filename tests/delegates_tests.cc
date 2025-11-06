@@ -1187,19 +1187,19 @@ TEST_F(DeferredCallTests, FunctionTraits_Lambda) {
   auto lambda = [](int x, std::string s) -> int { return x; };
   using traits = delegates::detail::function_traits<decltype(lambda)>;
   
-  static_assert(std::is_same_v<traits::result_type, int>, "Result type should be int");
+  static_assert(std::is_same<typename traits::result_type, int>::value, "Result type should be int");
   static_assert(traits::args_count == 2, "Should have 2 arguments");
-  static_assert(std::is_same_v<traits::template arg_type<0>, int>, "First arg should be int");
-  static_assert(std::is_same_v<traits::template arg_type<1>, std::string>, "Second arg should be string");
+  static_assert(std::is_same<typename traits::template arg_type<0>, int>::value, "First arg should be int");
+  static_assert(std::is_same<typename traits::template arg_type<1>, std::string>::value, "Second arg should be string");
 }
 
 TEST_F(DeferredCallTests, FunctionTraits_FunctionPointer) {
   using traits = delegates::detail::function_traits<int(*)(std::string, double)>;
   
-  static_assert(std::is_same_v<traits::result_type, int>, "Result type should be int");
+  static_assert(std::is_same<typename traits::result_type, int>::value, "Result type should be int");
   static_assert(traits::args_count == 2, "Should have 2 arguments");
-  static_assert(std::is_same_v<traits::template arg_type<0>, std::string>, "First arg should be string");
-  static_assert(std::is_same_v<traits::template arg_type<1>, double>, "Second arg should be double");
+  static_assert(std::is_same<typename traits::template arg_type<0>, std::string>::value, "First arg should be string");
+  static_assert(std::is_same<typename traits::template arg_type<1>, double>::value, "Second arg should be double");
 }
 
 #ifdef DELEGATES_WITH_JSON_SERIALIZATION

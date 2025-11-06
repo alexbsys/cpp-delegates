@@ -195,7 +195,8 @@ public:
     
     /// \brief    Register custom type serializer
     template<typename T>
-    void register_type() {
+    typename std::enable_if<!std::is_same<T, std::wstring>::value, void>::type
+    register_type() {
         size_t hash = typeid(T).hash_code();
         serializers_[hash] = [](const void* ptr, nlohmann::json& json) {
             const T& value = *static_cast<const T*>(ptr);
@@ -209,9 +210,10 @@ public:
         };
     }
     
-    // Specialization for std::wstring (convert to/from UTF-8 string)
-    template<>
-    void register_type<std::wstring>() {
+    // Overload for std::wstring (convert to/from UTF-8 string)
+    template<typename T>
+    typename std::enable_if<std::is_same<T, std::wstring>::value, void>::type
+    register_type() {
         size_t hash = typeid(std::wstring).hash_code();
         serializers_[hash] = [](const void* ptr, nlohmann::json& json) {
             const std::wstring& wstr = *static_cast<const std::wstring*>(ptr);
