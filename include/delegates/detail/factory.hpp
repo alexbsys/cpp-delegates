@@ -497,6 +497,17 @@ std::unique_ptr<IDelegate> make_unique_delegate_impl(detail::function_tag, F&& f
 
 /// \brief    Create delegate with automatic type deduction from callable
 ///           Returns TypedDelegate for convenient direct calls
+/// \param    callable - Lambda, function pointer, or std::function
+/// \return   TypedDelegate with automatically deduced types
+/// \note     This is the recommended way to create delegates when types can be inferred.
+///           For explicit type control (e.g., reference types), use make_delegate<Result, Args...>()
+/// \example
+/// \code
+/// auto delegate = factory::make_delegate_auto([](int x, std::string s) -> int {
+///     return x + s.length();
+/// });
+/// int result = delegate(42, "hello");  // Direct call
+/// \endcode
 template<typename F>
 auto make_delegate_auto(F&& callable) {
     using traits = detail::function_traits<std::decay_t<F>>;
@@ -531,7 +542,19 @@ auto make_delegate_auto_impl(detail::function_tag, F&& func,
 }
 
 /// \brief    Create typed delegate with explicit type specification
-///           Use this when you need control over reference types
+///           Use this when you need control over reference types or when automatic deduction fails
+/// \tparam   Result - Return type of the delegate
+/// \tparam   Args - Argument types (can include references like const std::string&)
+/// \param    callable - Lambda, function pointer, or std::function matching the signature
+/// \return   TypedDelegate with specified types
+/// \note     Explicit types allow control over reference semantics (e.g., const std::string& vs std::string)
+/// \example
+/// \code
+/// auto delegate = factory::make_delegate<int, const std::string&>(
+///     [](const std::string& s) -> int { return s.length(); }
+/// );
+/// int result = delegate("hello");  // Passes by const reference
+/// \endcode
 template<typename Result, typename... Args, typename F>
 TypedDelegate<Result, Args...> make_delegate(F&& callable) {
     IDelegate* raw = make_delegate_impl<Result, Args...>(

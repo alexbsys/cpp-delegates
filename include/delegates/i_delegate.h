@@ -38,6 +38,8 @@ DELEGATES_BASE_NAMESPACE_BEGIN
 namespace delegates {
 
 /// \brief    Result of call accessor interface
+///           Provides type-safe and low-level access to delegate call results.
+///           Used by executors to retrieve results without knowing the exact type at compile time.
 struct IDelegateResult {
   virtual ~IDelegateResult() = default;
 
@@ -113,6 +115,9 @@ struct IDelegateResult {
 };
 
 /// \brief    Delegate arguments accessor interface
+///           Provides type-safe and low-level access to delegate arguments.
+///           Supports index-based access for runtime automation and type-based access for convenience.
+///           Arguments are stored by value (references are decayed) to ensure safe cross-thread/IPC usage.
 struct IDelegateArgs {
   virtual ~IDelegateArgs() = default;
 
@@ -212,23 +217,41 @@ struct IDelegateArgs {
   }
 };
 
-/// \brief    Delegate interface
+/// \brief    Universal delegate interface for cross-thread and IPC/RPC execution
+///           This interface allows executors to call delegates without knowing argument or result types.
+///           The executor can work with IDelegate* pointers in a type-agnostic way, while the enqueuer
+///           can use TypedDelegate for convenient type-safe calls.
+/// \details  The main goal is to enable unified task execution in thread pools and IPC/RPC scenarios,
+///           where the executor simply calls delegate->call() without needing to know call details.
+///           Arguments and results are accessed through IDelegateArgs and IDelegateResult interfaces.
 struct IDelegate {
   virtual ~IDelegate() = default;
 
-  /// \brief    perform delegate call with stored parameters and save result into buffer
+  /// \brief    Perform delegate call with stored parameters and save result into buffer
+  /// \return   true if call successful, false otherwise
+  /// \note     Uses arguments stored via args() interface
   virtual bool call() = 0;
 
+  /// \brief    Perform delegate call with provided arguments
+  /// \param    args - arguments to use for this call (overrides stored arguments)
+  /// \return   true if call successful, false otherwise
   virtual bool call(IDelegateArgs* args) = 0;
 
-  /// \brief    get delegate arguments accessor
+  /// \brief    Get delegate arguments accessor
+  /// \return   Pointer to arguments interface for setting/getting argument values
+  /// \note     Arguments can be set by index using type-safe set<T>() or low-level set_ptr()
   virtual IDelegateArgs* args() = 0;
 
-  /// \brief    get delegate result accessor
+  /// \brief    Get delegate result accessor
+  /// \return   Pointer to result interface for getting call result
+  /// \note     Result can be retrieved using type-safe get<T>() or low-level get_ptr()
   virtual IDelegateResult* result() = 0;
 };
 
-/// \brief    multi delegate interface: provides call list with many delegates with same arguments and return values can be called
+/// \brief    Multi-delegate aggregator interface
+///           Provides call list with many delegates sharing the same argument and return types.
+///           When a signal is called, all connected delegates are invoked with the same arguments.
+///           Useful for observer patterns and event handling.
 struct ISignal
   : public virtual IDelegate {
   enum DelegateArgsMode {

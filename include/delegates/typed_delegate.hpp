@@ -94,7 +94,11 @@ public:
     TypedDelegate(const TypedDelegate&) = delete;
     TypedDelegate& operator=(const TypedDelegate&) = delete;
     
-    /// \brief    Direct call with arguments (convenient API)
+    /// \brief    Direct call with arguments (convenient type-safe API) - non-void return type
+    /// \param    call_args - Arguments to pass to the delegate
+    /// \return   Result value
+    /// \note     This is the primary interface for users who know the delegate types.
+    ///           For executors working with IDelegate*, use get_interface()->call() instead.
     Result operator()(Args... args) {
         set_args(std::forward<Args>(args)...);
         bool success = delegate_->call();
@@ -105,6 +109,9 @@ public:
     }
     
     /// \brief    Get untyped interface (for executor)
+    /// \return   Raw IDelegate* pointer for type-agnostic execution
+    /// \note     Executors can use this to work with delegates without knowing their types.
+    ///           This enables unified task queues and thread pools.
     IDelegate* get_interface() const { return delegate_; }
     
     /// \brief    Get arguments interface

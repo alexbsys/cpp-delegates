@@ -1,8 +1,21 @@
 # cpp-delegates
 
-C++ delegates and signals library
+Universal C++ delegates and signals library for cross-thread execution and IPC/RPC
 
-* C++14 standard, no dependencies. Simple intuitive integration. No OS-specific code
+## Project Goals
+
+The primary goal of this library is to **unify calls between threads and in IPC/RPC scenarios**. It enables:
+
+* **Universal task execution**: Executors can work with `IDelegate*` pointers without knowing argument or result types
+* **Type-safe convenience**: Users can use `TypedDelegate` for convenient direct calls: `delegate(42, "hello")`
+* **Cross-thread/IPC safety**: Arguments are stored by value (references decayed) to ensure safe execution in different contexts
+* **Serialization support**: Built-in serialization for IPC/RPC (JSON and binary formats)
+
+The executor (thread pool, IPC handler) simply calls `delegate->call()` without needing to know call details, while the task enqueuer can execute delegates synchronously or asynchronously using either the convenient typed API or the universal untyped interface.
+
+## Features
+
+* C++14 standard, no dependencies (serialization is optional). Simple intuitive integration. No OS-specific code
 * Headers-only. All headers can be concatenated to single file
 * Pass arguments as values, references, const references, pointers, etc
 * Slots can be: static functions, lambdas, `std::function`, class methods (regular and const)
@@ -10,23 +23,54 @@ C++ delegates and signals library
 * Dependency-injection interfaces are supported
 * RTTI type checking (but library may work without RTTI support)
 * Thread-safe
+* **Automatic type deduction** for convenient delegate creation
+* **Serialization support** (JSON via nlohmann/json, Binary via msgpack-c) for IPC/RPC
 
 ## Delegates and signals
 
-**Delegate** means single call activity with stored arguments inside it, and saved result. Caller may not know parameters or result type, but he can call delegate via `IDelegate::call()`.
+**Delegate** means single call activity with stored arguments inside it, and saved result. Caller may not know parameters or result type, but he can call delegate via `IDelegate::call()`. This enables universal execution patterns where executors work with delegates without knowing their types.
 
 **Signal** is "delegates aggregator": it implements `IDelegate` interface, but can hold more than one delegate inside, but with same arguments and return type.
 When *Signal* is called, all delegates inside it will be called with same parameters.
 
 ## How to build
 
-* In your own project: just copy directory `include/delegates` to your project includes dir and just include in C++: c++`#include <delegates/delegates.hpp>`
+### Basic build (without serialization)
+
+* In your own project: just copy directory `include/delegates` to your project includes dir and just include in C++: `#include <delegates/delegates.hpp>`
 * Build examples and tests: run in the project directory
 ```bash
 cmake -B build
 cd build
 make -j
 ```
+
+### Build with serialization support
+
+The library supports optional serialization backends for IPC/RPC scenarios:
+
+* **JSON serialization** (via nlohmann/json)
+* **Binary serialization** (via msgpack-c)
+
+To enable serialization, configure CMake with:
+
+```bash
+# Enable JSON serialization
+cmake -B build -DCPPDELEGATES_WITH_JSON_SERIALIZATION=ON
+
+# Enable binary serialization
+cmake -B build -DCPPDELEGATES_WITH_BINARY_SERIALIZATION=ON
+
+# Enable both
+cmake -B build \
+  -DCPPDELEGATES_WITH_JSON_SERIALIZATION=ON \
+  -DCPPDELEGATES_WITH_BINARY_SERIALIZATION=ON
+
+cd build
+make -j
+```
+
+Dependencies (nlohmann/json and msgpack-c) are automatically fetched via CMake `FetchContent`, so no manual installation is required.
 
 ## Supported platforms
 Tested compilers:
@@ -41,9 +85,99 @@ Tested platforms:
 * Linux
 * MacOS
 
-## Minimal usage example
+## Usage examples
 
-### Delegate with lambda call
+### Modern API: TypedDelegate with automatic type deduction
+
+The recommended way to create delegates when types can be inferred:
+
+```c++
+#include <delegates/delegates.hpp>
+#include <iostream>
+#include <string>
+
+using namespace delegates;
+
+int main() {
+  // Automatic type deduction - no need to specify types!
+  auto delegate = factory::make_delegate_auto(
+    [](int x, std::string s) -> int {
+      std::cout << "x=" << x << ", s=" << s << std::endl;
+      return x + static_cast<int>(s.length());
+    }
+  );
+  
+  // Direct call with arguments - convenient and type-safe
+  int result = delegate(42, "hello");
+  std::cout << "Result: " << result << std::endl;
+  
+  // Access to untyped interface for executors
+  IDelegate* untyped = delegate.get_interface();
+  untyped->args()->set<int>(0, 100);
+  untyped->args()->set<std::string>(1, "world");
+  untyped->call();
+  int result2 = untyped->result()->get<int>();
+  std::cout << "Result2: " << result2 << std::endl;
+  
+  return 0;
+}
+```
+
+### TypedDelegate with explicit types (for reference control)
+
+When you need explicit control over reference types:
+
+```c++
+#include <delegates/delegates.hpp>
+
+using namespace delegates;
+
+int main() {
+  // Explicit types allow control over references
+  auto delegate = factory::make_delegate<int, const std::string&>(
+    [](const std::string& s) -> int {
+      return static_cast<int>(s.length());
+    }
+  );
+  
+  std::string str = "test";
+  int result = delegate(str);  // Passes by const reference
+  return 0;
+}
+```
+
+### TypedDelegate with class methods
+
+```c++
+#include <delegates/delegates.hpp>
+#include <memory>
+
+using namespace delegates;
+
+class Calculator {
+public:
+  int add(int a, int b) { return a + b; }
+  int multiply(int a, int b) const { return a * b; }
+};
+
+int main() {
+  auto calc = std::make_shared<Calculator>();
+  
+  // Method delegate
+  auto add_delegate = factory::make_delegate(calc, &Calculator::add);
+  int sum = add_delegate(10, 20);  // Direct call
+  
+  // Const method delegate
+  auto mult_delegate = factory::make_delegate(calc, &Calculator::multiply);
+  int product = mult_delegate(5, 6);
+  
+  return 0;
+}
+```
+
+### Traditional API: Low-level interface
+
+For executors that work with delegates without knowing their types:
 
 ```c++
 #include <delegates/delegates.hpp>
@@ -54,17 +188,19 @@ Tested platforms:
 using namespace std;
 using namespace delegates;
 
-void main() {
-  // create delegate with return type 'int' and one argument 'std::string'
+int main() {
+  // Create delegate with return type 'int' and one argument 'std::string'
   auto delegate = factory::make_unique<int,string>([](string s)->int {
     cout << s << endl;
     return 42;
-    });
+  });
 
   delegate->args()->set<string>(0, "Hello world!"); // Set parameter #0 to string
   delegate->call();  // Perform call
   int ret = delegate->result()->get<int>(); // Get call return value
   cout << ret << endl;
+  
+  return 0;
 }
 ```
 
@@ -327,3 +463,225 @@ delegate->result()->clear(); // Clear result and free memory used by value
 ```
 
 For signals, result will be saved only from last delegate call.
+
+## Serialization for IPC/RPC
+
+The library provides serialization support for cross-process communication. Two backends are available:
+
+* **JSON serialization** (via nlohmann/json) - human-readable, good for debugging
+* **Binary serialization** (via msgpack-c) - compact, efficient for production
+
+### Supported types
+
+Serializers support:
+* Basic types: `int`, `long`, `float`, `double`, `bool`, `char`, `uint8_t`, `short`, `unsigned short`, `std::string`, `std::wstring`
+* Containers: `std::vector<T>` and `std::list<T>` for basic types
+* Custom types: Register your own types via `register_custom_type()`
+
+### JSON Serialization Example
+
+```c++
+#ifdef DELEGATES_WITH_JSON_SERIALIZATION
+#include <delegates/serialization/json_serializer.hpp>
+#include <delegates/serialization/i_serializer.h>
+
+using namespace delegates;
+
+int main() {
+  // Create delegate
+  auto delegate = factory::make_delegate<int, std::string, int>(
+    [](std::string s, int x) -> int {
+      return static_cast<int>(s.length()) + x;
+    }
+  );
+  
+  // Set arguments and call
+  delegate("hello", 10);
+  
+  // Serialize
+  serialization::JsonSerializer json_serializer;
+  serialization::DelegateSerializer serializer(&json_serializer);
+  
+  std::vector<uint8_t> serialized;
+  if (serializer.serialize_args(delegate.get_interface(), serialized)) {
+    std::cout << "Serialized to JSON: " << serialized.size() << " bytes" << std::endl;
+    
+    // Deserialize in another process/thread
+    auto new_delegate = factory::make_delegate<int, std::string, int>(
+      [](std::string s, int x) -> int {
+        return static_cast<int>(s.length()) + x;
+      }
+    );
+    
+    size_t offset = 0;
+    if (serializer.deserialize_args(new_delegate.get_interface(), serialized, offset)) {
+      new_delegate.call();
+      int result = new_delegate.get_result<int>();
+      std::cout << "Deserialized and called, result: " << result << std::endl;
+    }
+  }
+  
+  return 0;
+}
+#endif
+```
+
+### Binary Serialization Example
+
+```c++
+#ifdef DELEGATES_WITH_BINARY_SERIALIZATION
+#include <delegates/serialization/binary_serializer.hpp>
+#include <delegates/serialization/i_serializer.h>
+
+using namespace delegates;
+
+int main() {
+  // Create delegate
+  auto delegate = factory::make_delegate<int, int, int>(
+    [](int a, int b) -> int {
+      return a + b;
+    }
+  );
+  
+  // Set arguments
+  delegate(5, 7);
+  
+  // Serialize
+  serialization::BinarySerializer binary_serializer;
+  serialization::DelegateSerializer serializer(&binary_serializer);
+  
+  std::vector<uint8_t> serialized;
+  if (serializer.serialize_args(delegate.get_interface(), serialized)) {
+    std::cout << "Serialized to binary: " << serialized.size() << " bytes" << std::endl;
+    
+    // Deserialize
+    auto new_delegate = factory::make_delegate<int, int, int>(
+      [](int a, int b) -> int {
+        return a + b;
+      }
+    );
+    
+    size_t offset = 0;
+    if (serializer.deserialize_args(new_delegate.get_interface(), serialized, offset)) {
+      new_delegate.call();
+      int result = new_delegate.get_result<int>();
+      std::cout << "Deserialized and called, result: " << result << std::endl;
+    }
+  }
+  
+  return 0;
+}
+#endif
+```
+
+### Custom Type Serialization
+
+You can register custom types for serialization:
+
+```c++
+#ifdef DELEGATES_WITH_JSON_SERIALIZATION
+#include <delegates/serialization/json_serializer.hpp>
+
+struct MyCustomType {
+  int value;
+  std::string name;
+};
+
+int main() {
+  serialization::JsonSerializer serializer;
+  
+  // Register custom type
+  size_t type_hash = typeid(MyCustomType).hash_code();
+  serializer.register_custom_type(
+    type_hash,
+    [](const void* ptr, std::vector<uint8_t>& output) -> bool {
+      const MyCustomType* obj = static_cast<const MyCustomType*>(ptr);
+      // Serialize to JSON
+      nlohmann::json j;
+      j["value"] = obj->value;
+      j["name"] = obj->name;
+      std::string json_str = j.dump();
+      output.insert(output.end(), json_str.begin(), json_str.end());
+      return true;
+    },
+    [](const std::vector<uint8_t>& input, size_t& offset, void* ptr) -> bool {
+      MyCustomType* obj = static_cast<MyCustomType*>(ptr);
+      // Deserialize from JSON
+      std::string json_str(input.begin() + offset, input.end());
+      nlohmann::json j = nlohmann::json::parse(json_str);
+      obj->value = j["value"];
+      obj->name = j["name"];
+      offset = input.size();
+      return true;
+    }
+  );
+  
+  return 0;
+}
+#endif
+```
+
+## Thread Pool / Executor Pattern
+
+The library is designed for thread pool and executor patterns where tasks are enqueued and executed in different contexts:
+
+```c++
+#include <delegates/delegates.hpp>
+#include <queue>
+#include <thread>
+#include <mutex>
+
+using namespace delegates;
+
+class TaskExecutor {
+  std::queue<IDelegate*> task_queue_;
+  std::mutex mutex_;
+  bool running_ = true;
+  
+public:
+  // Enqueuer: uses convenient TypedDelegate API
+  template<typename Result, typename... Args>
+  void enqueue(TypedDelegate<Result, Args...> delegate) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    task_queue_.push(delegate.get_interface());
+  }
+  
+  // Executor: works with untyped interface
+  void worker_thread() {
+    while (running_) {
+      IDelegate* task = nullptr;
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!task_queue_.empty()) {
+          task = task_queue_.front();
+          task_queue_.pop();
+        }
+      }
+      
+      if (task) {
+        task->call();  // Executor doesn't need to know types!
+        // Result can be retrieved via task->result()->get<T>()
+      }
+    }
+  }
+};
+
+int main() {
+  TaskExecutor executor;
+  
+  // Enqueue tasks with convenient API
+  auto task1 = factory::make_delegate_auto([](int x) -> int { return x * 2; });
+  executor.enqueue(task1);
+  
+  auto task2 = factory::make_delegate_auto([](std::string s) -> void {
+    std::cout << s << std::endl;
+  });
+  executor.enqueue(task2);
+  
+  // Executor thread handles all tasks uniformly
+  std::thread worker([&executor]() { executor.worker_thread(); });
+  worker.join();
+  
+  return 0;
+}
+```
