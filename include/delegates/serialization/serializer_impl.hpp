@@ -23,7 +23,7 @@
 #ifndef DELEGATES_ISERIALIZER_IMPL_HEADER
 #define DELEGATES_ISERIALIZER_IMPL_HEADER
 
-#include "iserializer.h"
+#include "i_serializer.h"
 #include <stdexcept>
 #include <cstring>
 

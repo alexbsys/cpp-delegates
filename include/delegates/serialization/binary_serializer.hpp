@@ -25,7 +25,7 @@
 
 #ifdef DELEGATES_WITH_BINARY_SERIALIZATION
 
-#include "iserializer.h"
+#include "i_serializer.h"
 #include <unordered_map>
 #include <functional>
 #include <cstring>

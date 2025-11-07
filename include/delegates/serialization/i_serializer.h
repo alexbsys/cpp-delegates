@@ -157,7 +157,7 @@ private:
 DELEGATES_BASE_NAMESPACE_END
 
 // Include implementation
-#include "iserializer_impl.hpp"
+#include "serializer_impl.hpp"
 
 #endif // DELEGATES_ISERIALIZER_HEADER
 

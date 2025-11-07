@@ -25,8 +25,8 @@ set (DELEGATES_LIB_HEADER_FILES
   ../include/delegates/detail/function_traits.hpp
   ../include/delegates/detail/callable_traits.hpp
   ../include/delegates/typed_delegate.hpp
-  ../include/delegates/serialization/iserializer.h
-  ../include/delegates/serialization/iserializer_impl.hpp
+  ../include/delegates/serialization/i_serializer.h
+  ../include/delegates/serialization/serializer_impl.hpp
 )
 
 include_directories("${CMAKE_CURRENT_LIST_DIR}/../include")
