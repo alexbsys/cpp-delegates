@@ -28,6 +28,16 @@
 #include <mutex>
 #include <condition_variable>
 
+#ifdef DELEGATES_WITH_JSON_SERIALIZATION
+#include <delegates/serialization/json_serializer.hpp>
+#include <nlohmann/json.hpp>
+#endif
+
+#ifdef DELEGATES_WITH_BINARY_SERIALIZATION
+#include <delegates/serialization/binary_serializer.hpp>
+#include <msgpack.h>
+#endif
+
 #define DELEGATE_TESTS_WITH_EXCEPTIONS_ENABLED 1
 
 USING_DELEGATES_BASE_NAMESPACE
@@ -1041,3 +1051,601 @@ TEST_F(DeferredCallTests, TestDelegates_SignalCalls_Remove) {
   call1.reset();
   call2.reset();
 }
+
+// ============================================================================
+// Tests for new TypedDelegate API
+// ============================================================================
+
+TEST_F(DeferredCallTests, TypedDelegate_AutoTypeDeduction) {
+  auto delegate = delegates::factory::make_delegate_auto(
+    [](int x, std::string s) -> int {
+      return x + static_cast<int>(s.length());
+    }
+  );
+  
+  int result = delegate(42, "hello");
+  ASSERT_EQ(result, 42 + 5);
+}
+
+TEST_F(DeferredCallTests, TypedDelegate_ExplicitTypes) {
+  auto delegate = delegates::factory::make_delegate<int, const std::string&>(
+    [](const std::string& s) -> int {
+      return static_cast<int>(s.length());
+    }
+  );
+  
+  std::string str = "test";
+  int result = delegate(str);
+  ASSERT_EQ(result, 4);
+}
+
+TEST_F(DeferredCallTests, TypedDelegate_MethodCall) {
+  struct TestClass {
+    int add(int a, int b) { return a + b; }
+    int multiply(int a, int b) const { return a * b; }
+  };
+  
+  auto obj = std::make_shared<TestClass>();
+  auto add_delegate = delegates::factory::make_delegate(obj, &TestClass::add);
+  
+  int result = add_delegate(10, 20);
+  ASSERT_EQ(result, 30);
+  
+  auto mult_delegate = delegates::factory::make_delegate(obj, &TestClass::multiply);
+  int product = mult_delegate(5, 6);
+  ASSERT_EQ(product, 30);
+}
+
+TEST_F(DeferredCallTests, TypedDelegate_UntypedInterface) {
+  auto delegate = delegates::factory::make_delegate_auto(
+    [](int x) -> int {
+      return x * 2;
+    }
+  );
+  
+  // Use untyped interface (for executor)
+  IDelegate* untyped = delegate.get_interface();
+  ASSERT_NE(untyped, nullptr);
+  
+  untyped->args()->set<int>(0, 21);
+  bool success = untyped->call();
+  ASSERT_TRUE(success);
+  
+  int result = untyped->result()->get<int>();
+  ASSERT_EQ(result, 42);
+}
+
+TEST_F(DeferredCallTests, TypedDelegate_Shared) {
+  auto delegate = delegates::factory::make_delegate_shared_auto(
+    [](int x) -> int {
+      return x * 3;
+    }
+  );
+  
+  int result = (*delegate)(14);
+  ASSERT_EQ(result, 42);
+  
+  // Can be copied
+  auto delegate2 = delegate;
+  int result2 = (*delegate2)(10);
+  ASSERT_EQ(result2, 30);
+}
+
+TEST_F(DeferredCallTests, TypedDelegate_Unique) {
+  auto delegate = delegates::factory::make_delegate_unique_auto(
+    [](int x) -> int {
+      return x + 1;
+    }
+  );
+  
+  int result = delegate(41);
+  ASSERT_EQ(result, 42);
+}
+
+TEST_F(DeferredCallTests, TypedDelegate_VoidResult) {
+  int called = 0;
+  auto delegate = delegates::factory::make_delegate_auto(
+    [&called](int x) {
+      called = x;
+    }
+  );
+  
+  delegate(42);
+  ASSERT_EQ(called, 42);
+  
+  // Check void result
+  ASSERT_FALSE(delegate.has_result());
+}
+
+TEST_F(DeferredCallTests, TypedDelegate_IndexedArgs) {
+  auto delegate = delegates::factory::make_delegate<int, int, int>(
+    [](int a, int b) -> int {
+      return a + b;
+    }
+  );
+  
+  // Set arguments by index
+  delegate.set_arg<int>(0, 20);
+  delegate.set_arg<int>(1, 22);
+  
+  delegate.call();
+  int result = delegate.get_result<int>();
+  ASSERT_EQ(result, 42);
+  
+  // Get arguments by index
+  int arg0 = delegate.get_arg<int>(0);
+  int arg1 = delegate.get_arg<int>(1);
+  ASSERT_EQ(arg0, 20);
+  ASSERT_EQ(arg1, 22);
+}
+
+// ============================================================================
+// Tests for function_traits
+// ============================================================================
+
+TEST_F(DeferredCallTests, FunctionTraits_Lambda) {
+  auto lambda = [](int x, std::string s) -> int { return x; };
+  using traits = delegates::detail::function_traits<decltype(lambda)>;
+  
+  static_assert(std::is_same<typename traits::result_type, int>::value, "Result type should be int");
+  static_assert(traits::args_count == 2, "Should have 2 arguments");
+  static_assert(std::is_same<typename traits::template arg_type<0>, int>::value, "First arg should be int");
+  static_assert(std::is_same<typename traits::template arg_type<1>, std::string>::value, "Second arg should be string");
+}
+
+TEST_F(DeferredCallTests, FunctionTraits_FunctionPointer) {
+  using traits = delegates::detail::function_traits<int(*)(std::string, double)>;
+  
+  static_assert(std::is_same<typename traits::result_type, int>::value, "Result type should be int");
+  static_assert(traits::args_count == 2, "Should have 2 arguments");
+  static_assert(std::is_same<typename traits::template arg_type<0>, std::string>::value, "First arg should be string");
+  static_assert(std::is_same<typename traits::template arg_type<1>, double>::value, "Second arg should be double");
+}
+
+#ifdef DELEGATES_WITH_JSON_SERIALIZATION
+// ============================================================================
+// Tests for JSON serialization
+// ============================================================================
+
+TEST_F(DeferredCallTests, JsonSerialization_BasicTypes) {
+  auto delegate = delegates::factory::make_delegate<int, int, std::string>(
+    [](int a, std::string s) -> int {
+      return a + static_cast<int>(s.length());
+    }
+  );
+  
+  delegate(10, "hello");
+  
+  delegates::serialization::JsonSerializer json_serializer;
+  delegates::serialization::DelegateSerializer serializer(&json_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_args(delegate.get_interface(), serialized));
+  ASSERT_GT(serialized.size(), 0);
+  
+  // Deserialize
+  auto new_delegate = delegates::factory::make_delegate<int, int, std::string>(
+    [](int a, std::string s) -> int {
+      return a + static_cast<int>(s.length());
+    }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_args(new_delegate.get_interface(), serialized, offset));
+  
+  new_delegate.call();
+  int result = new_delegate.get_result<int>();
+  ASSERT_EQ(result, 15);  // 10 + 5
+}
+
+TEST_F(DeferredCallTests, JsonSerialization_Result) {
+  auto delegate = delegates::factory::make_delegate<int, int>(
+    [](int x) -> int {
+      return x * 2;
+    }
+  );
+  
+  delegate(21);
+  
+  delegates::serialization::JsonSerializer json_serializer;
+  delegates::serialization::DelegateSerializer serializer(&json_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_result(delegate.get_interface(), serialized));
+  
+  // Deserialize result
+  auto new_delegate = delegates::factory::make_delegate<int, int>(
+    [](int x) -> int { return 0; }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_result(new_delegate.get_interface(), serialized, offset));
+  
+  int result = new_delegate.get_result<int>();
+  ASSERT_EQ(result, 42);
+}
+#endif
+
+#ifdef DELEGATES_WITH_BINARY_SERIALIZATION
+// ============================================================================
+// Tests for Binary serialization
+// ============================================================================
+
+TEST_F(DeferredCallTests, BinarySerialization_BasicTypes) {
+  auto delegate = delegates::factory::make_delegate<int, int, int>(
+    [](int a, int b) -> int {
+      return a + b;
+    }
+  );
+  
+  delegate(20, 22);
+  
+  delegates::serialization::BinarySerializer binary_serializer;
+  delegates::serialization::DelegateSerializer serializer(&binary_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_args(delegate.get_interface(), serialized));
+  ASSERT_GT(serialized.size(), 0);
+  
+  // Deserialize
+  auto new_delegate = delegates::factory::make_delegate<int, int, int>(
+    [](int a, int b) -> int {
+      return a + b;
+    }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_args(new_delegate.get_interface(), serialized, offset));
+  
+  new_delegate.call();
+  int result = new_delegate.get_result<int>();
+  ASSERT_EQ(result, 42);
+}
+
+TEST_F(DeferredCallTests, BinarySerialization_Result) {
+  auto delegate = delegates::factory::make_delegate<int, int>(
+    [](int x) -> int {
+      return x * 2;
+    }
+  );
+  
+  delegate(21);
+  
+  delegates::serialization::BinarySerializer binary_serializer;
+  delegates::serialization::DelegateSerializer serializer(&binary_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_result(delegate.get_interface(), serialized));
+  
+  // Deserialize result
+  auto new_delegate = delegates::factory::make_delegate<int, int>(
+    [](int x) -> int { return 0; }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_result(new_delegate.get_interface(), serialized, offset));
+  
+  int result = new_delegate.get_result<int>();
+  ASSERT_EQ(result, 42);
+}
+
+TEST_F(DeferredCallTests, JsonSerialization_Strings) {
+  auto delegate = delegates::factory::make_delegate<std::string, std::string, std::wstring>(
+    [](std::string s1, std::wstring s2) -> std::string {
+      std::string result = s1;
+      for (wchar_t wc : s2) {
+        if (wc < 0x80) {
+          result += static_cast<char>(wc);
+        }
+      }
+      return result;
+    }
+  );
+  
+  delegate("hello", L"world");
+  
+  delegates::serialization::JsonSerializer json_serializer;
+  delegates::serialization::DelegateSerializer serializer(&json_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_args(delegate.get_interface(), serialized));
+  
+  auto new_delegate = delegates::factory::make_delegate<std::string, std::string, std::wstring>(
+    [](std::string s1, std::wstring s2) -> std::string {
+      std::string result = s1;
+      for (wchar_t wc : s2) {
+        if (wc < 0x80) {
+          result += static_cast<char>(wc);
+        }
+      }
+      return result;
+    }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_args(new_delegate.get_interface(), serialized, offset));
+  
+  new_delegate.call();
+  std::string result = new_delegate.get_result<std::string>();
+  ASSERT_EQ(result, "helloworld");
+}
+
+TEST_F(DeferredCallTests, JsonSerialization_Vectors) {
+  auto delegate = delegates::factory::make_delegate<std::vector<int>, std::vector<int>, std::vector<std::string>>(
+    [](std::vector<int> v1, std::vector<std::string> v2) -> std::vector<int> {
+      std::vector<int> result = v1;
+      for (const auto& s : v2) {
+        result.push_back(static_cast<int>(s.length()));
+      }
+      return result;
+    }
+  );
+  
+  delegate({1, 2, 3}, {"a", "bb", "ccc"});
+  
+  delegates::serialization::JsonSerializer json_serializer;
+  delegates::serialization::DelegateSerializer serializer(&json_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_args(delegate.get_interface(), serialized));
+  
+  auto new_delegate = delegates::factory::make_delegate<std::vector<int>, std::vector<int>, std::vector<std::string>>(
+    [](std::vector<int> v1, std::vector<std::string> v2) -> std::vector<int> {
+      std::vector<int> result = v1;
+      for (const auto& s : v2) {
+        result.push_back(static_cast<int>(s.length()));
+      }
+      return result;
+    }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_args(new_delegate.get_interface(), serialized, offset));
+  
+  new_delegate.call();
+  std::vector<int> result = new_delegate.get_result<std::vector<int>>();
+  ASSERT_EQ(result.size(), 6);
+  ASSERT_EQ(result[0], 1);
+  ASSERT_EQ(result[1], 2);
+  ASSERT_EQ(result[2], 3);
+  ASSERT_EQ(result[3], 1);
+  ASSERT_EQ(result[4], 2);
+  ASSERT_EQ(result[5], 3);
+}
+
+TEST_F(DeferredCallTests, JsonSerialization_Lists) {
+  auto delegate = delegates::factory::make_delegate<std::list<int>, std::list<int>>(
+    [](std::list<int> l) -> std::list<int> {
+      std::list<int> result = l;
+      result.push_back(999);
+      return result;
+    }
+  );
+  
+  delegate({10, 20, 30});
+  
+  delegates::serialization::JsonSerializer json_serializer;
+  delegates::serialization::DelegateSerializer serializer(&json_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_args(delegate.get_interface(), serialized));
+  
+  auto new_delegate = delegates::factory::make_delegate<std::list<int>, std::list<int>>(
+    [](std::list<int> l) -> std::list<int> {
+      std::list<int> result = l;
+      result.push_back(999);
+      return result;
+    }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_args(new_delegate.get_interface(), serialized, offset));
+  
+  new_delegate.call();
+  std::list<int> result = new_delegate.get_result<std::list<int>>();
+  ASSERT_EQ(result.size(), 4);
+  auto it = result.begin();
+  ASSERT_EQ(*it++, 10);
+  ASSERT_EQ(*it++, 20);
+  ASSERT_EQ(*it++, 30);
+  ASSERT_EQ(*it++, 999);
+}
+
+TEST_F(DeferredCallTests, BinarySerialization_NewTypes) {
+  auto delegate = delegates::factory::make_delegate<int, char, uint8_t, short, unsigned short>(
+    [](char c, uint8_t u8, short s, unsigned short us) -> int {
+      return static_cast<int>(c) + static_cast<int>(u8) + static_cast<int>(s) + static_cast<int>(us);
+    }
+  );
+  
+  delegate('A', 100, -50, 200);
+  
+  delegates::serialization::BinarySerializer binary_serializer;
+  delegates::serialization::DelegateSerializer serializer(&binary_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_args(delegate.get_interface(), serialized));
+  
+  auto new_delegate = delegates::factory::make_delegate<int, char, uint8_t, short, unsigned short>(
+    [](char c, uint8_t u8, short s, unsigned short us) -> int {
+      return static_cast<int>(c) + static_cast<int>(u8) + static_cast<int>(s) + static_cast<int>(us);
+    }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_args(new_delegate.get_interface(), serialized, offset));
+  
+  new_delegate.call();
+  int result = new_delegate.get_result<int>();
+  ASSERT_EQ(result, 65 + 100 - 50 + 200);  // 'A' = 65
+}
+
+TEST_F(DeferredCallTests, BinarySerialization_WString) {
+  auto delegate = delegates::factory::make_delegate<std::wstring, std::wstring>(
+    [](std::wstring ws) -> std::wstring {
+      return ws + L"_suffix";
+    }
+  );
+  
+  delegate(L"test");
+  
+  delegates::serialization::BinarySerializer binary_serializer;
+  delegates::serialization::DelegateSerializer serializer(&binary_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_args(delegate.get_interface(), serialized));
+  
+  auto new_delegate = delegates::factory::make_delegate<std::wstring, std::wstring>(
+    [](std::wstring ws) -> std::wstring {
+      return ws + L"_suffix";
+    }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_args(new_delegate.get_interface(), serialized, offset));
+  
+  new_delegate.call();
+  std::wstring result = new_delegate.get_result<std::wstring>();
+  ASSERT_EQ(result, L"test_suffix");
+}
+
+TEST_F(DeferredCallTests, BinarySerialization_Vectors) {
+  auto delegate = delegates::factory::make_delegate<std::vector<short>, std::vector<short>>(
+    [](std::vector<short> v) -> std::vector<short> {
+      v.push_back(999);
+      return v;
+    }
+  );
+  
+  delegate({1, 2, 3});
+  
+  delegates::serialization::BinarySerializer binary_serializer;
+  delegates::serialization::DelegateSerializer serializer(&binary_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_args(delegate.get_interface(), serialized));
+  
+  auto new_delegate = delegates::factory::make_delegate<std::vector<short>, std::vector<short>>(
+    [](std::vector<short> v) -> std::vector<short> {
+      v.push_back(999);
+      return v;
+    }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_args(new_delegate.get_interface(), serialized, offset));
+  
+  new_delegate.call();
+  std::vector<short> result = new_delegate.get_result<std::vector<short>>();
+  ASSERT_EQ(result.size(), 4);
+  ASSERT_EQ(result[0], 1);
+  ASSERT_EQ(result[1], 2);
+  ASSERT_EQ(result[2], 3);
+  ASSERT_EQ(result[3], 999);
+}
+
+TEST_F(DeferredCallTests, BinarySerialization_Lists) {
+  auto delegate = delegates::factory::make_delegate<std::list<float>, std::list<float>>(
+    [](std::list<float> l) -> std::list<float> {
+      l.push_back(3.14f);
+      return l;
+    }
+  );
+  
+  delegate({1.1f, 2.2f});
+  
+  delegates::serialization::BinarySerializer binary_serializer;
+  delegates::serialization::DelegateSerializer serializer(&binary_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_args(delegate.get_interface(), serialized));
+  
+  auto new_delegate = delegates::factory::make_delegate<std::list<float>, std::list<float>>(
+    [](std::list<float> l) -> std::list<float> {
+      l.push_back(3.14f);
+      return l;
+    }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_args(new_delegate.get_interface(), serialized, offset));
+  
+  new_delegate.call();
+  std::list<float> result = new_delegate.get_result<std::list<float>>();
+  ASSERT_EQ(result.size(), 3);
+  auto it = result.begin();
+  ASSERT_FLOAT_EQ(*it++, 1.1f);
+  ASSERT_FLOAT_EQ(*it++, 2.2f);
+  ASSERT_FLOAT_EQ(*it++, 3.14f);
+}
+
+TEST_F(DeferredCallTests, BinarySerialization_Vectors_Double) {
+  auto delegate = delegates::factory::make_delegate<std::vector<double>, std::vector<double>>(
+    [](std::vector<double> v) -> std::vector<double> {
+      v.push_back(99.99);
+      return v;
+    }
+  );
+  
+  delegate({1.1, 2.2, 3.3});
+  
+  delegates::serialization::BinarySerializer binary_serializer;
+  delegates::serialization::DelegateSerializer serializer(&binary_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_args(delegate.get_interface(), serialized));
+  
+  auto new_delegate = delegates::factory::make_delegate<std::vector<double>, std::vector<double>>(
+    [](std::vector<double> v) -> std::vector<double> {
+      v.push_back(99.99);
+      return v;
+    }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_args(new_delegate.get_interface(), serialized, offset));
+  
+  new_delegate.call();
+  std::vector<double> result = new_delegate.get_result<std::vector<double>>();
+  ASSERT_EQ(result.size(), 4);
+  ASSERT_DOUBLE_EQ(result[0], 1.1);
+  ASSERT_DOUBLE_EQ(result[1], 2.2);
+  ASSERT_DOUBLE_EQ(result[2], 3.3);
+  ASSERT_DOUBLE_EQ(result[3], 99.99);
+}
+
+TEST_F(DeferredCallTests, BinarySerialization_Lists_Double) {
+  auto delegate = delegates::factory::make_delegate<std::list<double>, std::list<double>>(
+    [](std::list<double> l) -> std::list<double> {
+      l.push_back(3.14159);
+      return l;
+    }
+  );
+  
+  delegate({1.11, 2.22});
+  
+  delegates::serialization::BinarySerializer binary_serializer;
+  delegates::serialization::DelegateSerializer serializer(&binary_serializer);
+  
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(serializer.serialize_args(delegate.get_interface(), serialized));
+  
+  auto new_delegate = delegates::factory::make_delegate<std::list<double>, std::list<double>>(
+    [](std::list<double> l) -> std::list<double> {
+      l.push_back(3.14159);
+      return l;
+    }
+  );
+  
+  size_t offset = 0;
+  ASSERT_TRUE(serializer.deserialize_args(new_delegate.get_interface(), serialized, offset));
+  
+  new_delegate.call();
+  std::list<double> result = new_delegate.get_result<std::list<double>>();
+  ASSERT_EQ(result.size(), 3);
+  auto it = result.begin();
+  ASSERT_DOUBLE_EQ(*it++, 1.11);
+  ASSERT_DOUBLE_EQ(*it++, 2.22);
+  ASSERT_DOUBLE_EQ(*it++, 3.14159);
+}
+#endif
