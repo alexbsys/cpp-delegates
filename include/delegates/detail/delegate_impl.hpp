@@ -30,6 +30,7 @@
 #include <list>
 #include <mutex>
 #include <cstddef>
+#include <cstdint>
 
 #if DELEGATES_STRICT
 #include <stdexcept>
@@ -50,14 +51,61 @@ namespace delegates {
 
 namespace detail {
 
+// Opt-in debugging aid, off by default: it adds a word to every delegate and a
+// check to every call, so it is meant for chasing a specific corruption, not
+// for shipping.
+//
+// A delegate that is called or destroyed after it has already been destroyed
+// shows up in a tombstone as a jump through a wrecked vtable, in a place that
+// says nothing about who broke it. The sentinel below turns that into an
+// immediate fault at the moment of detection, with a fault address that names
+// the case:
+//
+//   0xDEAD0001 - destroyed twice
+//   0xDEAD0002 - called after destruction
+//
+// The faulting frame is then the delegate's own call or destructor, and the
+// backtrace above it names the code that still held the dangling reference.
+//
+// Build the whole process with the same setting: the guard changes the layout
+// of DelegateBase, so mixing translation units that disagree about it is worse
+// than the bug being hunted.
+#ifndef DELEGATES_LIFETIME_GUARD
+#define DELEGATES_LIFETIME_GUARD 0
+#endif
+
+#if DELEGATES_LIFETIME_GUARD
+#define DELEGATES_GUARD_ALIVE 0xD3134A7EA11E0001ull
+#define DELEGATES_GUARD_DEAD  0xDEADD3134A7E0000ull
+#define DELEGATES_GUARD_FAULT(code)                                       \
+  do {                                                                    \
+    volatile uintptr_t* fault_ptr = reinterpret_cast<uintptr_t*>(code);   \
+    *fault_ptr = reinterpret_cast<uintptr_t>(this);                       \
+  } while (0)
+#endif  // DELEGATES_LIFETIME_GUARD
+
 /// \brief    Delegate base implementation. Void or non-void return types are supported
 template<typename TResult, typename... TArgs>
 struct DelegateBase
   : public virtual IDelegate {
   DelegateBase(DelegateArgs<TArgs...> && params) : params_(std::move(params)) {}
+#if DELEGATES_LIFETIME_GUARD
+  ~DelegateBase() {
+    if (guard_ != DELEGATES_GUARD_ALIVE)
+      DELEGATES_GUARD_FAULT(0xDEAD0001);
+    guard_ = DELEGATES_GUARD_DEAD;
+  }
+#else
   ~DelegateBase() = default;
+#endif
 
-  bool call() override { return perform_call(result_, params_); }
+  bool call() override {
+#if DELEGATES_LIFETIME_GUARD
+    if (guard_ != DELEGATES_GUARD_ALIVE)
+      DELEGATES_GUARD_FAULT(0xDEAD0002);
+#endif
+    return perform_call(result_, params_);
+  }
   
   bool call(IDelegateArgs* args) override { 
     if (!args || args->size() != params_.size()) {
@@ -96,6 +144,9 @@ protected:
 private:
   DelegateResult<TResult> result_;
   DelegateArgs<TArgs...> params_;
+#if DELEGATES_LIFETIME_GUARD
+  uint64_t guard_ = DELEGATES_GUARD_ALIVE;
+#endif
 };
 
 
